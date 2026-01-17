@@ -1,0 +1,17 @@
+{
+  "name": "frontend-openapi-skills",
+  "owner": {
+    "name": "HaibaraaiAPTX"
+  },
+  "plugins": [
+      {
+        "name": "frontend-openapi-skills",
+        "source": "./",
+        "description": "A collection of frontend skills for working with OpenAPI specifications, including downloading Swagger files and generating TypeScript models.",
+        "version": "1.0.0",
+        "author": {
+          "name": "HaibaraaiAPTX"
+        }
+      }
+  ]
+}

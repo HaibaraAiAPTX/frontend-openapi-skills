@@ -1,0 +1,31 @@
+{
+  "typeMapping": {
+    "string": "string",
+    "integer": "number",
+    "int": "number",
+    "float": "number",
+    "boolean": "boolean",
+    "array": "Array<{{type}}>",
+    "object": "Record<string, any>"
+  },
+  "formatMapping": {
+    "date": "Date",
+    "date-time": "Date",
+    "uuid": "string",
+    "uri": "string",
+    "url": "string",
+    "email": "string",
+    "password": "string",
+    "byte": "string",
+    "binary": "Blob",
+    "int64": "number"
+  },
+  "naming": {
+    "interface": "PascalCase",
+    "property": "camelCase",
+    "enum": "PascalCase"
+  },
+  "output": {
+    "addWarningHeader": true
+  }
+}
