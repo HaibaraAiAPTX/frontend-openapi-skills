@@ -1,7 +1,7 @@
 {
   "name": "frontend-openapi-skills",
   "description": "A collection of frontend skills for working with OpenAPI specifications, including downloading Swagger files and generating TypeScript models.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "HaibaraaiAPTX"
   }

@@ -12,6 +12,7 @@ Automatically generate type-safe API client code from your OpenAPI definitions �
 ## Features
 
 - 🚀 **Automated TypeScript Generation** — Convert OpenAPI schemas to TypeScript interfaces and types
+- 📁 **Folder Mode** — Generate one TypeScript file per model with automatic imports for better organization
 - 📥 **Remote Spec Download** — Fetch OpenAPI specifications from any URL
 - 🎯 **Type Safety** — Generate fully typed models and API clients
 - ⚙️ **Configurable** — Customize type mappings, naming conventions, and output formats
@@ -25,7 +26,10 @@ Downloads OpenAPI/Swagger specification files from remote URLs. Supports both JS
 
 ### [generate-ts-models](./skills/generate-ts-models)
 
-Generates TypeScript type declarations (interfaces, types, enums) from OpenAPI/Swagger specifications.
+Generates TypeScript type declarations (interfaces, types, enums) from OpenAPI/Swagger specifications with two output modes:
+
+- **Single File Mode** — All models in one TypeScript file (backward compatible)
+- **Folder Mode** — One file per model with automatic type imports and index.ts for easy navigation
 
 ## Installation
 ```bash
@@ -37,9 +41,67 @@ Generates TypeScript type declarations (interfaces, types, enums) from OpenAPI/S
 ```
 
 ## Usage
+
+### Basic Usage
+
+Download and convert OpenAPI spec to TypeScript models:
+
 ```
 Download https://petstore.swagger.io/v2/swagger.json file and convert to TypeScript models
 ```
+
+### Single File Mode (Default)
+
+Generate all models in a single TypeScript file:
+
+```
+Download https://api.example.com/swagger.json file and convert to TypeScript models in single file mode
+```
+
+### Folder Mode
+
+Generate one TypeScript file per model for better organization:
+
+```
+Download https://api.example.com/swagger.json file and convert to TypeScript models in folder mode
+```
+
+**Output Example (Folder Mode):**
+
+```
+src/types/
+├── User.ts
+├── UserStatus.ts
+├── Order.ts
+├── Product.ts
+└── index.ts
+```
+
+Each file automatically imports its dependencies:
+
+```typescript
+// User.ts
+import { UserStatus } from './UserStatus';
+
+export interface User {
+  id: number;
+  email: string;
+  status: UserStatus;
+}
+```
+
+For detailed configuration options and advanced usage, see [skill documentation](./skills/generate-ts-models/SKILL.md).
+
+### Output Mode Comparison
+
+| Feature | Single File Mode | Folder Mode |
+|---------|-----------------|-------------|
+| File Structure | One `.ts` file | One `.ts` file per model |
+| Imports | Not needed (all in one file) | Automatic type imports |
+| Bundle Size | Larger (all code together) | Smaller (better tree-shaking) |
+| Navigation | Search within file | One file per model (Ctrl+P friendly) |
+| Best For | Small to medium APIs | Large APIs, better organization |
+| Index File | Not applicable | Auto-generated `index.ts` with exports |
 
 ## Supported OpenAPI Features
 
@@ -53,6 +115,7 @@ Download https://petstore.swagger.io/v2/swagger.json file and convert to TypeScr
 | Format Types | ✅ | ✅ |
 | References ($ref) | ✅ | ✅ |
 | Description Support | ✅ | ✅ |
+| Type Imports (Folder Mode) | ✅ | ✅ |
 
 ## Contributing
 
@@ -74,7 +137,12 @@ cd frontend-openapi-skills
 
 # Test a skill locally
 bash skills/download-swagger-file/scripts/download.sh <url>
-bash skills/generate-ts-models/scripts/generate.sh <spec-file>
+
+# Generate TypeScript models (single file mode)
+bash skills/generate-ts-models/scripts/generate.sh <spec-file> ./api-models.ts
+
+# Generate TypeScript models (folder mode)
+bash skills/generate-ts-models/scripts/generate.sh <spec-file> ./src/types/
 
 # Install skills to Claude Code for testing
 cp -r skills/* ~/.claude/skills/

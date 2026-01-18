@@ -26,6 +26,10 @@
     "enum": "PascalCase"
   },
   "output": {
-    "addWarningHeader": true
+    "addWarningHeader": true,
+    "mode": "auto",
+    "generateIndex": true,
+    "fileExtension": ".ts",
+    "indexFileName": "index.ts"
   }
 }

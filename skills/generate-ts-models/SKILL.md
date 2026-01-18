@@ -18,26 +18,44 @@ Converts OpenAPI/Swagger schema definitions into TypeScript type declarations (i
 ## Usage
 
 ```bash
-bash /mnt/skills/user/generate-ts-models/scripts/generate.sh <spec-file> [output-file]
+bash /mnt/skills/user/generate-ts-models/scripts/generate.sh <spec-file> [output-path] [options]
 ```
 
 **Arguments:**
 - `spec-file` - Path to the OpenAPI/Swagger specification file (required)
-- `output-file` - Path for the generated TypeScript file (optional, defaults to `api-models.ts`)
+- `output-path` - Path for the generated TypeScript file or directory (optional, defaults to `api-models.ts`)
+- `--output-mode <mode>` - Explicit output mode: `single` (one file), `folder` (one file per model), or `auto` (auto-detect based on path)
 
 **Examples:**
 
-Generate with default settings: 
+Generate with default settings (single file): 
 ```bash
 bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json
 ```
 
-Generate to custom output:
+Generate to custom single file:
 ```bash
 bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/api.ts
 ```
 
+Generate to folder (one file per model):
+```bash
+bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/
+```
+
+Generate with explicit folder mode:
+```bash
+bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/ --output-mode folder
+```
+
+Generate single file to directory path (must use explicit mode):
+```bash
+bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/api.ts --output-mode single
+```
+
 ## Output
+
+### Single File Mode (default)
 
 ```typescript
 /**
@@ -67,6 +85,55 @@ export enum UserStatus {
   Inactive = "Inactive",
   Suspended = "Suspended"
 }
+```
+
+### Folder Mode
+
+Generates separate files:
+
+**`User.ts`:**
+```typescript
+/**
+ * Auto-generated from OpenAPI specification
+ * Do not edit manually
+ */
+
+/**
+ * User information
+ */
+export interface User {
+  /** User unique identifier */
+  id: number;
+  /** User's email address */
+  email: string;
+  /** User's full name */
+  name?: string;
+  /** User account status */
+  status: UserStatus;
+}
+```
+
+**`UserStatus.ts`:**
+```typescript
+/**
+ * Auto-generated from OpenAPI specification
+ * Do not edit manually
+ */
+
+/**
+ * User account status
+ */
+export enum UserStatus {
+  Active = "Active",
+  Inactive = "Inactive",
+  Suspended = "Suspended"
+}
+```
+
+**`index.ts`:** (if `generateIndex` is enabled)
+```typescript
+export * from './User';
+export * from './UserStatus';
 ```
 
 ## Configuration
@@ -100,7 +167,11 @@ The behavior can be customized via `config.json`:
     "enum": "PascalCase"
   },
   "output": {
-    "addWarningHeader": true
+    "addWarningHeader": true,
+    "mode": "auto",
+    "generateIndex": true,
+    "fileExtension": ".ts",
+    "indexFileName": "index.ts"
   }
 }
 ```
@@ -138,11 +209,33 @@ The behavior can be customized via `config.json`:
 | `property` | `camelCase` | Property naming style |
 | `enum` | `PascalCase` | Enum naming style |
 
+### Output Mode Options
+
+| Option | Values | Description |
+|--------|--------|-------------|
+| `mode` | `"auto"` \| `"single"` \| `"folder"` | Output mode - auto-detect, single file, or one file per model |
+| `generateIndex` | `true` \| `false` | Generate index.ts file in folder mode |
+| `fileExtension` | `".ts"` | File extension for generated files |
+| `indexFileName` | `"index.ts"` | Name of index file in folder mode |
+
+**Output Mode Behavior:**
+- `auto`: Automatically detects based on output path - `.ts` extension → single file, directory → folder
+- `single`: All models in one TypeScript file (backward compatible)
+- `folder`: One TypeScript file per model (interface/enum) with optional index.ts
+
 ## Present Results to User
 
 Successfully generated TypeScript models:
 
+**Single File Mode:**
 - **Output file**: `./api-models.ts`
+- **Interfaces**: 15
+- **Enums**: 4
+- **Source specification**: swagger.json
+
+**Folder Mode:**
+- **Output directory**: `./src/types/`
+- **Files generated**: 20 (15 interfaces, 4 enums, 1 index.ts)
 - **Interfaces**: 15
 - **Enums**: 4
 - **Source specification**: swagger.json
