@@ -119,6 +119,18 @@ function convertName(name, convention) {
   }
 }
 
+// Generate enum key from value
+// If value is a valid identifier, use it directly; otherwise prefix with "Value"
+function generateEnumKey(value) {
+  const strValue = String(value);
+  // Check if it's a valid TypeScript identifier (starts with letter or underscore, followed by alphanumeric or underscore)
+  if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(strValue)) {
+    return strValue;
+  }
+  // For numeric values or invalid identifiers, prefix with "Value"
+  return `Value${strValue}`;
+}
+
 // Map OpenAPI type to TypeScript type
 function mapType(schema, config) {
   if (!schema) return 'any';
@@ -144,7 +156,7 @@ function parseSchemas(spec, config, interfaces, enums) {
         name: convertName(name, config.naming.enum),
         description: schema.description || '',
         values: schema.enum.map(v => ({
-          key: convertName(String(v), config.naming.enum),
+          key: generateEnumKey(v),
           value: v,
           isString: typeof v === 'string'
         }))
