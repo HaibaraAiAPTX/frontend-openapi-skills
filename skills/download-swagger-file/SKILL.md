@@ -1,83 +1,106 @@
 ---
 name: download-swagger-file
-description: Download Swagger/OpenAPI specification file from a URL. Use phrases like "Download swagger file", "Fetch OpenAPI spec", "Get API documentation", etc.
+description: Download OpenAPI/Swagger specification files from a URL. Use for: (1) Fetching API specs from remote servers, (2) Saving OpenAPI JSON locally, (3) Preparing specs for TypeScript model generation.
 ---
 
 # Download Swagger/OpenAPI File
 
-Downloads an OpenAPI (Swagger) specification file from a remote URL and saves it locally. Supports both JSON and YAML formats for OpenAPI 2.0 and 3.x specifications.
+Downloads an OpenAPI/Swagger specification file from a remote URL and saves it locally.
 
 ## How It Works
 
-1. Validates the provided URL is accessible
-2. Downloads the specification file using curl
-3. Detects and validates the file format (JSON/YAML)
-4. Saves the file to the specified output path
-5. Returns the file path and basic metadata
+1. **Validate** input - Ensure URL parameter is provided
+2. **Download** - Use curl to fetch OpenAPI spec from URL
+3. **Validate** content - Check if response is valid JSON
+4. **Create** output directory - Create directory path if it doesn't exist
+5. **Write** file - Save spec to specified output path
+6. **Report** results - Return success with file size and path
 
 ## Usage
 
 ```bash
-bash /mnt/skills/user/download-swagger-file/scripts/download.sh <url> [output-path]
+node skills/download-swagger-file/scripts/download.js <url> [output-path]
 ```
 
 **Arguments:**
-- `url` - The URL of the OpenAPI/Swagger specification file (required)
-- `output-path` - Local file path to save the downloaded file (optional, defaults to `openapi.json` in current directory)
+- `url` - URL of OpenAPI/Swagger JSON (required)
+- `output-path` - Local file path (optional, defaults to `openapi.json`)
 
 **Examples:**
 
-Download to default location:
 ```bash
-bash /mnt/skills/user/download-swagger-file/scripts/download.sh https://api.example.com/swagger.json
-```
+# Download to default location
+node skills/download-swagger-file/scripts/download.js https://api.example.com/swagger.json
 
-Download with custom output path:
-```bash
-bash /mnt/skills/user/download-swagger-file/scripts/download.sh https://api.example.com/swagger.json ./specs/my-api.json
-```
-
-Download YAML specification:
-```bash
-bash /mnt/skills/user/download-swagger-file/scripts/download.sh https://api.example.com/openapi.yaml ./docs/api.yaml
+# Download to custom path
+node skills/download-swagger-file/scripts/download.js https://api.example.com/swagger.json ./specs/my-api.json
 ```
 
 ## Output
+
+### Success Response
+
+Script outputs JSON to stdout:
 
 ```json
 {
   "success": true,
   "filePath": "./specs/petstore.json",
-  "format": "json",
-  "size": 15234,
-  "url": "https://petstore.swagger.io/v2/swagger.json"
+  "size": 15520,
+  "url": "https://api.example.com/swagger.json"
 }
 ```
 
+### Status Messages
+
+Download progress and success messages are written to stderr:
+
+```bash
+Downloading OpenAPI specification from: https://api.example.com/swagger.json
+Downloaded OpenAPI spec to ./specs/petstore.json (15.2 KB)
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "error": "Failed to download file from URL",
+  "code": "DOWNLOAD_FAILED"
+}
+```
+
+All error codes are documented in [Error Codes](references/error-codes.md).
+
 ## Present Results to User
 
-Successfully downloaded OpenAPI specification:
+After successful download, present:
 
-- **File**: `./specs/petstore.json`
-- **Format**: JSON
-- **Size**: 15.2 KB
-- **Source**: https://petstore.swagger.io/v2/swagger.json
+```
+Downloaded OpenAPI spec to {filePath} ({size} KB)
 
-The file is ready to use with other OpenAPI skills for generating TypeScript models and API clients.
+Use this file with the generate-ts-models skill to create TypeScript type definitions.
+```
 
-## Troubleshooting
+After failure, present:
 
-**Error: Failed to download file**
-- Check that the URL is accessible in a browser
-- Verify the server has CORS enabled if accessed from a browser
-- Ensure the URL points directly to the JSON/YAML file, not a documentation page
+```
+Error: {error message} (code: {ERROR_CODE})
 
-**Error: Invalid OpenAPI format**
-- Verify the downloaded file is a valid OpenAPI/Swagger specification
-- Check that the file is not HTML (common when URL points to docs page instead of raw spec)
-- Use a JSON/YAML validator to check file syntax
+Suggestion: {troubleshooting tip from errors.md}
+```
 
-**Error: Permission denied writing to output path**
-- Ensure you have write permissions for the output directory
-- Try specifying a different output path in a writable location
-- Create the target directory before running the script
+If file already exists, mention:
+```
+Note: Output file already exists and was overwritten.
+```
+
+## Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| URL points to HTML page | Use direct JSON URL (e.g., `/v2/swagger.json`) |
+| CORS errors | Access via curl/server, not browser |
+| Permission denied | Create directory first, check write access |
+
+See [Error Codes](references/errors.md) for complete reference.

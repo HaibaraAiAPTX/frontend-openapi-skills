@@ -1,258 +1,139 @@
 ---
 name: generate-ts-models
-description: Generate TypeScript type declarations from OpenAPI/Swagger specification. Use phrases like "Generate TS models", "Create TypeScript interfaces from swagger", "Generate API types", etc.
+description: Use when you have an OpenAPI/Swagger JSON specification and need TypeScript type definitions for schemas, enums, with automatic index.ts barrel file generation
 ---
 
 # Generate TypeScript Models
 
-Converts OpenAPI/Swagger schema definitions into TypeScript type declarations (interfaces, types, enums). Supports customizable naming conventions, type mappings, and output formats.
+Converts OpenAPI/Swagger schemas into TypeScript declarations (interfaces, enums, and index barrel file).
 
-## How It Works
+## Overview
 
-1. Parses the OpenAPI/Swagger specification file (JSON/YAML)
-2. Extracts schema definitions from components/definitions
-3. Applies type mapping and naming transformations
-4. Generates TypeScript declarations (interfaces and enums)
-5. Writes the output to the specified file
+Generates TypeScript interfaces and enums from OpenAPI/Swagger specifications with automatic barrel file organization. Supports both OpenAPI 3.x (`components/schemas`) and Swagger 2.0 (`definitions`).
 
-## Usage
+Core principle: Parse schemas → Apply type mappings → Generate one file per schema → Create barrel file
 
-```bash
-bash /mnt/skills/user/generate-ts-models/scripts/generate.sh <spec-file> [output-path] [options]
-```
+## When to Use
 
-**Arguments:**
-- `spec-file` - Path to the OpenAPI/Swagger specification file (required)
-- `output-path` - Path for the generated TypeScript file or directory (optional, defaults to `api-models.ts`)
-- `--output-mode <mode>` - Explicit output mode: `single` (one file), `folder` (one file per model), or `auto` (auto-detect based on path)
+Use this skill when:
 
-**Examples:**
+- You have an OpenAPI or Swagger specification file
+- Need TypeScript type safety for API models
+- Want automatic barrel file (index.ts) generation
+- Generating initial types or regenerating from updated specs
+- Need custom type mappings or enum protection
 
-Generate with default settings (single file): 
-```bash
-bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json
-```
+**Do NOT use when:**
 
-Generate to custom single file:
-```bash
-bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/api.ts
-```
+- Spec file is not JSON format → Use `download-swagger-file` skill first
+- Need single-file output → This skill only supports folder mode
+- Spec has no schemas → Verify spec contains `components/schemas` or `definitions`
 
-Generate to folder (one file per model):
-```bash
-bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/
-```
+## Core Pattern
 
-Generate with explicit folder mode:
-```bash
-bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/ --output-mode folder
-```
-
-Generate single file to directory path (must use explicit mode):
-```bash
-bash /mnt/skills/user/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/api.ts --output-mode single
-```
-
-## Output
-
-### Single File Mode (default)
-
-```typescript
-/**
- * Auto-generated from OpenAPI specification
- * Do not edit manually
- */
-
-/**
- * User information
- */
-export interface User {
-  /** User unique identifier */
-  id: number;
-  /** User's email address */
-  email: string;
-  /** User's full name */
-  name?: string;
-  /** User account status */
-  status: UserStatus;
-}
-
-/**
- * User account status
- */
-export enum UserStatus {
-  Active = "Active",
-  Inactive = "Inactive",
-  Suspended = "Suspended"
-}
-```
-
-### Folder Mode
-
-Generates separate files:
-
-**`User.ts`:**
-```typescript
-/**
- * Auto-generated from OpenAPI specification
- * Do not edit manually
- */
-
-/**
- * User information
- */
-export interface User {
-  /** User unique identifier */
-  id: number;
-  /** User's email address */
-  email: string;
-  /** User's full name */
-  name?: string;
-  /** User account status */
-  status: UserStatus;
-}
-```
-
-**`UserStatus.ts`:**
-```typescript
-/**
- * Auto-generated from OpenAPI specification
- * Do not edit manually
- */
-
-/**
- * User account status
- */
-export enum UserStatus {
-  Active = "Active",
-  Inactive = "Inactive",
-  Suspended = "Suspended"
-}
-```
-
-**`index.ts`:** (if `generateIndex` is enabled)
-```typescript
-export * from './User';
-export * from './UserStatus';
-```
-
-## Configuration
-
-The behavior can be customized via `config.json`:
-
+**Before:**
 ```json
+// openapi.json
 {
-  "typeMapping": {
-    "string": "string",
-    "integer": "number",
-    "float": "number",
-    "boolean": "boolean",
-    "array": "Array<{{type}}>",
-    "object": "Record<string, any>"
-  },
-  "formatMapping": {
-    "date": "Date",
-    "date-time": "Date",
-    "uuid": "string",
-    "uri": "string",
-    "url": "string",
-    "email": "string",
-    "password": "string",
-    "byte": "string",
-    "binary": "Blob"
-  },
-  "naming": {
-    "interface": "PascalCase",
-    "property": "camelCase",
-    "enum": "PascalCase"
-  },
-  "output": {
-    "addWarningHeader": true,
-    "mode": "auto",
-    "generateIndex": true,
-    "fileExtension": ".ts",
-    "indexFileName": "index.ts"
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "name": {"type": "string"}
+        }
+      }
+    }
   }
 }
 ```
 
-### Type Mapping Options
+**After:**
+```typescript
+// types/User.ts
+export interface User {
+  id: number;
+  name: string;
+}
 
-| OpenAPI Type | Default TS Type |
-|--------------|-----------------|
-| `string` | `string` |
-| `integer` | `number` |
-| `float` | `number` |
-| `boolean` | `boolean` |
-| `array` | `Array<T>` |
-| `object` | `Record<string, any>` |
+// types/index.ts
+export * from './User';
+```
 
-### Format Mapping Options
+**Workflow:** Parse spec → Extract schemas → Apply mappings → Generate files → Create barrel
 
-| OpenAPI Format | Default TS Type |
-|----------------|-----------------|
-| `date` | `Date` |
-| `date-time` | `Date` |
-| `uuid` | `string` |
-| `uri` | `string` |
-| `url` | `string` |
-| `email` | `string` |
-| `password` | `string` |
-| `byte` | `string` |
-| `binary` | `Blob` |
+## Usage
 
-### Naming Convention Options
+```bash
+node skills/generate-ts-models/scripts/generate.js <spec-file> [output-dir] [options]
+```
 
-| Option | Values | Description |
-|--------|--------|-------------|
-| `interface` | `PascalCase` | Interface naming style |
-| `property` | `camelCase` | Property naming style |
-| `enum` | `PascalCase` | Enum naming style |
+**Arguments:**
+- `spec-file` - Path to OpenAPI JSON (required)
+- `output-dir` - Output directory (optional, defaults to `./types`)
+- `--enum-protect <strategy>` - See [Enum Protection](references/enum-protection.md)
 
-### Output Mode Options
+**Examples:**
 
-| Option | Values | Description |
-|--------|--------|-------------|
-| `mode` | `"auto"` \| `"single"` \| `"folder"` | Output mode - auto-detect, single file, or one file per model |
-| `generateIndex` | `true` \| `false` | Generate index.ts file in folder mode |
-| `fileExtension` | `".ts"` | File extension for generated files |
-| `indexFileName` | `"index.ts"` | Name of index file in folder mode |
+```bash
+# Default settings
+node skills/generate-ts-models/scripts/generate.js ./swagger.json
 
-**Output Mode Behavior:**
-- `auto`: Automatically detects based on output path - `.ts` extension → single file, directory → folder
-- `single`: All models in one TypeScript file (backward compatible)
-- `folder`: One TypeScript file per model (interface/enum) with optional index.ts
+# Custom output directory
+node skills/generate-ts-models/scripts/generate.js ./swagger.json ./src/types/
 
-## Present Results to User
+# With enum protection
+node skills/generate-ts-models/scripts/generate.js ./swagger.json ./types --enum-protect preserve-manual
+```
 
-Successfully generated TypeScript models:
+## Output Structure
 
-**Single File Mode:**
-- **Output file**: `./api-models.ts`
-- **Interfaces**: 15
-- **Enums**: 4
-- **Source specification**: swagger.json
+Generates one `.ts` file per schema plus an `index.ts` barrel file:
 
-**Folder Mode:**
-- **Output directory**: `./src/types/`
-- **Files generated**: 20 (15 interfaces, 4 enums, 1 index.ts)
-- **Interfaces**: 15
-- **Enums**: 4
-- **Source specification**: swagger.json
+```
+./types/
+├── User.ts
+├── UserStatus.ts
+└── index.ts
+```
 
-The generated types are ready to use in your TypeScript project.
+**Generated content:**
+
+| File | Type |
+|------|------|
+| `User.ts` | interface |
+| `UserStatus.ts` | enum |
+| `index.ts` | barrel file (auto-generated exports) |
+
+See [Configuration](references/config.md) for customization.
+
+## Enum Protection
+
+Preserve manually edited enum keys when regenerating. See [Enum Protection](references/enum-protection.md) for:
+- Protection strategies (`none`, `preserve-manual`, `always`)
+- @preserve-manual marker format
+- Workflow examples
 
 ## Troubleshooting
 
-**Error: Failed to parse specification file**
-- Ensure the specification file is valid JSON or YAML format
-- Check that the file path is correct and accessible
-- Verify OpenAPI/Swagger version is supported (2.0 or 3.x)
+Common issues:
+- **INVALID_JSON** - Check spec file is valid JSON
+- **NO_SCHEMAS** - Verify spec has `components/schemas` or `definitions`
+- **PERMISSION_DENIED** - Check write permissions on output directory
 
-**Error: No schemas found in specification**
-- Check that your spec contains `components/schemas` (OpenAPI 3.x) or `definitions` (Swagger 2.0)
-- Some specs use inline schemas instead of named definitions
+See [Error Codes](references/errors.md) for complete reference.
 
-**Type names conflict or are invalid**
-- Adjust the `naming` settings in `config.json` to change naming conventions
-- Modify the `typeMapping` and `formatMapping` in `config.json` to customize type conversions
+## Common Mistakes
+
+| Mistake | Symptoms | Fix |
+|----------|-----------|-----|
+| Passing .ts file as output path | Error: `SINGLE_FILE_NOT_SUPPORTED` | Use directory path, not file path |
+| Expecting single-file output | All schemas in one .ts file | This skill generates one file per schema |
+| Not creating output directory | Error: `PERMISSION_DENIED` | Create directory first: `mkdir -p ./types` |
+| Forgetting barrel file import | Can't find types | Import from barrel: `import { User } from './types'` |
+
+## Present Results to User
+
+Generated TypeScript models to `./src/types/`:
+- 20 files (15 interfaces, 4 enums, 1 index.ts)

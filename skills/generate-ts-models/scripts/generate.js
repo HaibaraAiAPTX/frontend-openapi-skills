@@ -3,8 +3,187 @@
 const fs = require('fs');
 const path = require('path');
 
-function renderWarningHeader() {
-  return '/**\n * Auto-generated from OpenAPI specification\n * Do not edit manually\n */\n\n';
+function renderWarningHeader(preservedKeys = []) {
+  let header = '/**\n * Auto-generated from OpenAPI specification\n';
+  if (preservedKeys.length > 0) {
+    header += ` * @preserve-manual ${preservedKeys.join(', ')}\n`;
+  }
+  header += ' * Do not edit manually\n */\n\n';
+  return header;
+}
+
+function renderPreserveMarker(preservedKeys = []) {
+  if (!preservedKeys || preservedKeys.length === 0) {
+    return '';
+  }
+  return `/**\n * @preserve-manual ${preservedKeys.join(', ')}\n */\n`;
+}
+
+/**
+ * Parse the file header to extract @preserve-manual markers
+ * Returns an array of preserved enum keys
+ */
+function parseFileHeader(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+      const match = line.match(/^\s*\*\s*@preserve-manual\s+(.+)$/);
+      if (match) {
+        const keys = match[1].split(',').map(k => k.trim()).filter(k => k);
+        return keys;
+      }
+    }
+
+    return [];
+  } catch (error) {
+    console.error(`Warning: Failed to parse file header: ${error.message}`);
+    return [];
+  }
+}
+
+function parsePreserveKeysFromContent(content) {
+  const lines = content.split('\n');
+
+  for (const line of lines) {
+    const match = line.match(/^\s*\*\s*@preserve-manual\s+(.+)$/);
+    if (match) {
+      return match[1].split(',').map(k => k.trim()).filter(k => k);
+    }
+  }
+
+  return [];
+}
+
+function escapeRegExp(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parsePreservedKeysForEnumFromContent(content, enumName) {
+  try {
+    const enumRegex = new RegExp(`export enum\\s+${escapeRegExp(enumName)}\\b`);
+    const enumMatch = enumRegex.exec(content);
+    if (!enumMatch) {
+      return [];
+    }
+
+    const preserved = [];
+    let cursor = enumMatch.index;
+
+    while (true) {
+      const commentEnd = content.lastIndexOf('*/', cursor);
+      if (commentEnd === -1) break;
+
+      const between = content.slice(commentEnd + 2, cursor);
+      if (!/^\s*$/.test(between)) break;
+
+      const commentStart = content.lastIndexOf('/**', commentEnd);
+      if (commentStart === -1) break;
+
+      const block = content.slice(commentStart, commentEnd + 2);
+      const keys = parsePreserveKeysFromContent(block);
+      preserved.push(...keys);
+
+      cursor = commentStart;
+    }
+
+    return Array.from(new Set(preserved));
+  } catch (error) {
+    console.error(`Warning: Failed to parse preserved keys for enum ${enumName}: ${error.message}`);
+    return [];
+  }
+}
+
+function parseEnumValuesFromBody(enumBody) {
+  const values = [];
+  const lines = enumBody.split(/\r?\n/);
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('/**') || trimmed.startsWith('*')) {
+      continue;
+    }
+
+    const match = trimmed.match(/^(\w+)\s*=\s*(.+?)(?:,|$)/);
+    if (match) {
+      let value = match[2].trim();
+      const isString = value.startsWith('"') || value.startsWith("'");
+      if (isString) {
+        value = value.slice(1, -1);
+      } else {
+        value = parseInt(value, 10);
+      }
+      values.push({
+        key: match[1],
+        value: value,
+        isString: isString
+      });
+    }
+  }
+
+  return values;
+}
+
+function parseExistingEnumValuesFromContent(content, enumName) {
+  try {
+    const enumRegex = new RegExp(`export enum\\s+${escapeRegExp(enumName)}\\s*\\{([\\s\\S]*?)\\}`, 'm');
+    const enumMatch = enumRegex.exec(content);
+    if (!enumMatch) {
+      return [];
+    }
+
+    return parseEnumValuesFromBody(enumMatch[1]);
+  } catch (error) {
+    console.error(`Warning: Failed to parse existing enum from content: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Merge new enum values with preserved manual keys
+ * @param {Array} newValues - New enum values from OpenAPI spec
+ * @param {Array} preservedKeys - Keys that should be preserved from existing file
+ * @param {Array} existingValues - Existing enum values (if file exists)
+ * @returns {Array} - Merged enum values
+ */
+function mergeEnumValues(newValues, preservedKeys = [], existingValues = []) {
+  if (preservedKeys.length === 0) {
+    return newValues;
+  }
+
+  const preservedMap = new Map();
+  for (const existing of existingValues) {
+    if (preservedKeys.includes(existing.key)) {
+      preservedMap.set(existing.value, existing);
+    }
+  }
+
+  const result = [];
+  const usedValues = new Set();
+
+  for (const newVal of newValues) {
+    if (preservedMap.has(newVal.value)) {
+      const preserved = preservedMap.get(newVal.value);
+      result.push(preserved);
+      usedValues.add(newVal.value);
+    } else {
+      result.push(newVal);
+      usedValues.add(newVal.value);
+    }
+  }
+
+  for (const [value, preserved] of preservedMap) {
+    if (!usedValues.has(value)) {
+      result.push(preserved);
+    }
+  }
+
+  return result;
 }
 
 function extractTypeReferences(typeStr, knownTypes) {
@@ -76,6 +255,9 @@ function renderModel(model, knownTypes = new Set()) {
     }
     output += '}\n';
   } else if (model.type === 'enum') {
+    if (model.emitPreserveMarker && model.preservedKeys && model.preservedKeys.length > 0) {
+      output += renderPreserveMarker(model.preservedKeys);
+    }
     output += `export enum ${model.name} {\n`;
     for (const val of model.values) {
       output += `  ${val.key} = ${val.isString ? `"${val.value}"` : val.value}`;
@@ -94,7 +276,7 @@ function renderTemplate(data) {
   let output = '';
 
   if (data.addWarningHeader) {
-    output += renderWarningHeader();
+    output += renderWarningHeader(data.preservedKeys || []);
   }
 
   for (const iface of data.interfaces) {
@@ -108,33 +290,106 @@ function renderTemplate(data) {
   return output.trim();
 }
 
+const reservedWords = new Set([
+  'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
+  'delete', 'do', 'else', 'enum', 'export', 'extends', 'false', 'finally', 'for',
+  'function', 'if', 'import', 'in', 'instanceof', 'new', 'null', 'return',
+  'super', 'switch', 'this', 'throw', 'true', 'try', 'typeof', 'var', 'void',
+  'while', 'with', 'as', 'implements', 'interface', 'let', 'package', 'private',
+  'protected', 'public', 'static', 'yield', 'any', 'boolean', 'constructor',
+  'declare', 'get', 'module', 'require', 'number', 'set', 'string', 'symbol',
+  'type', 'from', 'of'
+]);
+
+function splitIntoWords(input) {
+  const str = String(input ?? '').trim();
+  if (!str) return [];
+
+  // Normalize separators to spaces, then split.
+  const normalized = str
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim();
+
+  return normalized ? normalized.split(/\s+/) : [];
+}
+
+function toPascalCase(input) {
+  const words = splitIntoWords(input);
+  const joined = words
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join('');
+  return joined || 'Unnamed';
+}
+
+function toCamelCase(input) {
+  const pascal = toPascalCase(input);
+  return pascal.charAt(0).toLowerCase() + pascal.slice(1);
+}
+
+function isValidIdentifier(name) {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !reservedWords.has(name);
+}
+
+function toTsPropertyName(rawName, preferredIdentifier) {
+  const preferred = preferredIdentifier && isValidIdentifier(preferredIdentifier)
+    ? preferredIdentifier
+    : null;
+
+  if (preferred) return preferred;
+
+  const literal = String(rawName).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `'${literal}'`;
+}
+
 // Convert string naming convention
 function convertName(name, convention) {
   switch (convention) {
     case 'PascalCase':
-      return name.replace(/[-_]([a-z])/g, (_, c) => c.toUpperCase())
-                 .replace(/^[a-z]/, c => c.toUpperCase());
+      return toPascalCase(name);
+    case 'camelCase':
+      return toCamelCase(name);
     default:
       return name;
   }
 }
 
 // Generate enum key from value
-// If value is a valid identifier, use it directly; otherwise prefix with "Value"
+// If value is a valid identifier, use it directly; otherwise prefix with "Enum"
 function generateEnumKey(value) {
   const strValue = String(value);
-  // Check if it's a valid TypeScript identifier (starts with letter or underscore, followed by alphanumeric or underscore)
-  if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(strValue)) {
+
+  if (isValidIdentifier(strValue)) {
     return strValue;
   }
-  // For numeric values or invalid identifiers, prefix with "Value"
-  return `Value${strValue}`;
+
+  // Negative numbers: EnumMinus1, EnumMinus2
+  if (/^-?\d+$/.test(strValue)) {
+    const num = Number(strValue);
+    if (num < 0) {
+      return `EnumMinus${Math.abs(num)}`;
+    }
+    return `Enum${strValue}`;
+  }
+
+  // Generate PascalCase and ensure valid identifier
+  const pascal = toPascalCase(strValue);
+
+  // If still invalid after conversion, add Enum prefix
+  if (!isValidIdentifier(pascal)) {
+    return `Enum${pascal}`;
+  }
+
+  return pascal;
 }
 
 // Map OpenAPI type to TypeScript type
 function mapType(schema, config) {
   if (!schema) return 'any';
-  if (schema.$ref) return schema.$ref.split('/').pop();
+  if (schema.$ref) {
+    const refName = schema.$ref.split('/').pop();
+    return convertName(refName, config.naming.interface);
+  }
   if (schema.enum) return schema.type === 'string' ? 'string' : 'number';
   if (schema.type === 'array') {
     const itemType = mapType(schema.items, config);
@@ -152,14 +407,22 @@ function parseSchemas(spec, config, interfaces, enums) {
 
   for (const [name, schema] of Object.entries(schemaDefinitions)) {
     if (schema.enum) {
+      const usedKeys = new Set();
       enums.push({
         name: convertName(name, config.naming.enum),
         description: schema.description || '',
-        values: schema.enum.map(v => ({
-          key: generateEnumKey(v),
-          value: v,
-          isString: typeof v === 'string'
-        }))
+        values: schema.enum.map((v, index) => {
+          let key = generateEnumKey(v);
+          while (usedKeys.has(key)) {
+            key = `${key}_${index}`;
+          }
+          usedKeys.add(key);
+          return {
+            key,
+            value: v,
+            isString: typeof v === 'string'
+          };
+        })
       });
       continue;
     }
@@ -169,8 +432,9 @@ function parseSchemas(spec, config, interfaces, enums) {
       const requiredFields = new Set(schema.required || []);
 
       for (const [propName, propSchema] of Object.entries(schema.properties || {})) {
+        const preferred = convertName(propName, config.naming.property);
         properties.push({
-          name: convertName(propName, config.naming.property),
+          name: toTsPropertyName(propName, preferred),
           type: mapType(propSchema, config),
           required: requiredFields.has(propName),
           description: propSchema.description || ''
@@ -186,9 +450,32 @@ function parseSchemas(spec, config, interfaces, enums) {
   }
 }
 
-function generateToFolder(interfaces, enums, outputDir, config) {
+/**
+ * Parse existing enum file to extract current values
+ */
+function parseExistingEnumFile(filePath, enumName) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+
+    if (enumName) {
+      return parseExistingEnumValuesFromContent(content, enumName);
+    }
+
+    const enumMatch = content.match(/export enum\s+(\w+)\s*\{([\s\S]*?)\}/);
+    if (!enumMatch) return [];
+    return parseEnumValuesFromBody(enumMatch[2]);
+  } catch (error) {
+    console.error(`Warning: Failed to parse existing enum file: ${error.message}`);
+    return [];
+  }
+}
+
+function generateToFolder(interfaces, enums, outputDir, config, enumProtectStrategy = 'none') {
   const generatedFiles = [];
-  const warningHeader = config.output.addWarningHeader ? renderWarningHeader() : '';
 
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -201,6 +488,7 @@ function generateToFolder(interfaces, enums, outputDir, config) {
   for (const iface of interfaces) {
     const fileName = `${iface.name}${config.output.fileExtension}`;
     const filePath = path.join(outputDir, fileName);
+    const warningHeader = config.output.addWarningHeader ? renderWarningHeader() : '';
     const content = warningHeader + renderModel({ ...iface, type: 'interface' }, knownTypes);
     fs.writeFileSync(filePath, content, 'utf8');
     generatedFiles.push(fileName);
@@ -209,7 +497,23 @@ function generateToFolder(interfaces, enums, outputDir, config) {
   for (const enumItem of enums) {
     const fileName = `${enumItem.name}${config.output.fileExtension}`;
     const filePath = path.join(outputDir, fileName);
-    const content = warningHeader + renderModel({ ...enumItem, type: 'enum' }, knownTypes);
+
+    let preservedKeys = [];
+    let existingValues = [];
+    let finalValues = enumItem.values;
+
+    if (enumProtectStrategy !== 'none' && enumProtectStrategy !== 'always') {
+      const existingFile = path.join(outputDir, fileName);
+      preservedKeys = parseFileHeader(existingFile);
+      existingValues = parseExistingEnumFile(existingFile);
+
+      if (preservedKeys.length > 0) {
+        finalValues = mergeEnumValues(enumItem.values, preservedKeys, existingValues);
+      }
+    }
+
+    const warningHeader = config.output.addWarningHeader ? renderWarningHeader(preservedKeys) : '';
+    const content = warningHeader + renderModel({ ...enumItem, type: 'enum', values: finalValues }, knownTypes);
     fs.writeFileSync(filePath, content, 'utf8');
     generatedFiles.push(fileName);
   }
@@ -229,91 +533,184 @@ function generateToFolder(interfaces, enums, outputDir, config) {
   return generatedFiles;
 }
 
+function loadConfig() {
+  const configPath = path.join(__dirname, '..', 'config.json');
+  if (!fs.existsSync(configPath)) {
+    return defaultConfig;
+  }
+
+  try {
+    const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf8')) || {};
+    return {
+      ...defaultConfig,
+      typeMapping: { ...defaultConfig.typeMapping, ...(userConfig.typeMapping || {}) },
+      formatMapping: { ...defaultConfig.formatMapping, ...(userConfig.formatMapping || {}) },
+      naming: { ...defaultConfig.naming, ...(userConfig.naming || {}) },
+      output: { ...defaultConfig.output, ...(userConfig.output || {}) }
+    };
+  } catch (error) {
+    console.error(`Warning: Failed to parse config.json, using defaults: ${error.message}`);
+    return defaultConfig;
+  }
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+/**
+ * Validate input file (size and format)
+ */
+function validateInputFile(filePath) {
+  const stats = fs.statSync(filePath);
+
+  if (stats.size > MAX_FILE_SIZE) {
+    throw new Error(`File exceeds maximum size of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+  }
+
+  const ext = path.extname(filePath);
+  if (ext !== '.json') {
+    throw new Error('Input file must be a JSON file');
+  }
+
+  // Validate JSON format
+  const content = fs.readFileSync(filePath, 'utf8');
+  try {
+    JSON.parse(content);
+  } catch (e) {
+    throw new Error('Invalid JSON format in input file');
+  }
+
+  return true;
+}
+
+// Default configuration (built-in, no config file needed)
+const defaultConfig = {
+  typeMapping: {
+    string: 'string',
+    integer: 'number',
+    int: 'number',
+    float: 'number',
+    boolean: 'boolean',
+    array: 'Array<{{type}}>',
+    object: 'Record<string, any>'
+  },
+  formatMapping: {
+    date: 'Date',
+    'date-time': 'Date',
+    uuid: 'string',
+    uri: 'string',
+    url: 'string',
+    email: 'string',
+    password: 'string',
+    byte: 'string',
+    binary: 'Blob',
+    int64: 'number'
+  },
+  naming: {
+    interface: 'PascalCase',
+    property: 'camelCase',
+    enum: 'PascalCase'
+  },
+  output: {
+    addWarningHeader: true,
+    mode: 'auto',
+    generateIndex: true,
+    fileExtension: '.ts',
+    indexFileName: 'index.ts'
+  }
+};
+
 // Main generation function
-function generate(inputFile, outputFile, options = {}) {
+function generate(inputFile, outputDir, options = {}) {
+  validateInputFile(inputFile);
+
   const specContent = fs.readFileSync(inputFile, 'utf8');
   const spec = JSON.parse(specContent);
 
-  const defaultConfigPath = path.join(__dirname, '..', 'config.json');
-  const config = JSON.parse(fs.readFileSync(defaultConfigPath, 'utf8'));
+  const config = loadConfig();
 
   const interfaces = [];
   const enums = [];
 
   parseSchemas(spec, config, interfaces, enums);
 
-  let outputMode = options.mode || config.output.mode;
-  if (outputMode === 'auto') {
-    if (fs.existsSync(outputFile)) {
-      outputMode = fs.statSync(outputFile).isDirectory() ? 'folder' : 'single';
-    } else {
-      outputMode = path.extname(outputFile) === '.ts' ? 'single' : 'folder';
-    }
-  }
-
-  if (outputMode === 'folder') {
-    const generatedFiles = generateToFolder(interfaces, enums, outputFile, config);
-    return {
-      success: true,
-      outputMode: 'folder',
-      outputDir: outputFile,
-      generatedFiles,
-      interfaceCount: interfaces.length,
-      enumCount: enums.length
-    };
-  } else {
-    const output = renderTemplate({
-      addWarningHeader: config.output.addWarningHeader,
-      interfaces,
-      enums
-    });
-
-    fs.writeFileSync(outputFile, output, 'utf8');
-
-    return {
-      success: true,
-      outputMode: 'single',
-      outputFile,
-      interfaceCount: interfaces.length,
-      enumCount: enums.length
-    };
-  }
+  const generatedFiles = generateToFolder(interfaces, enums, outputDir, config, options.enumProtect);
+  return {
+    success: true,
+    outputDir,
+    generatedFiles,
+    interfaceCount: interfaces.length,
+    enumCount: enums.length
+  };
 }
 
 if (require.main === module) {
   const args = process.argv.slice(2);
   const inputFile = args[0];
-  let outputFile = args[1] || 'api-models.ts';
+  const outputDir = args[1] || './types';
 
   const options = {};
   for (let i = 2; i < args.length; i++) {
-    if (args[i] === '--output-mode' && args[i + 1]) {
-      options.mode = args[i + 1];
+    if (args[i] === '--enum-protect' && args[i + 1]) {
+      options.enumProtect = args[i + 1];
       i++;
     }
   }
 
   if (!inputFile) {
-    console.error(JSON.stringify({ success: false, error: 'Input file is required' }));
+    console.error('Error: Input file is required');
+    console.log(JSON.stringify({ success: false, error: 'Input file is required' }));
     process.exit(1);
   }
 
   try {
-    const result = generate(inputFile, outputFile, options);
-    if (result.outputMode === 'folder') {
-      console.error(`Generated ${result.generatedFiles.length} files in ${result.outputDir}`);
-      console.error(`  - ${result.interfaceCount} interfaces`);
-      console.error(`  - ${result.enumCount} enums`);
-    } else {
-      console.error(`Generated ${result.interfaceCount} interfaces, ${result.enumCount} enums to ${result.outputFile}`);
+    if (path.extname(outputDir) === '.ts') {
+      throw new Error('Single-file output is not supported. Pass an output directory (e.g. ./types/)');
     }
+    if (fs.existsSync(outputDir) && fs.statSync(outputDir).isFile()) {
+      throw new Error(`Output path is a file, expected a directory: ${outputDir}`);
+    }
+
+    const result = generate(inputFile, outputDir, options);
+    console.error(`Generated ${result.generatedFiles.length} files in ${result.outputDir}`);
+    console.error(`  - ${result.interfaceCount} interfaces`);
+    console.error(`  - ${result.enumCount} enums`);
     console.log(JSON.stringify(result));
   } catch (error) {
+    const errorCode = getErrorCode(error);
     console.error(`Error: ${error.message}`);
     console.error(`Stack: ${error.stack}`);
-    console.log(JSON.stringify({ success: false, error: error.message }));
+    console.log(JSON.stringify({
+      success: false,
+      error: error.message,
+      code: errorCode
+    }));
     process.exit(1);
   }
+}
+
+/**
+ * Map errors to standardized error codes
+ */
+function getErrorCode(error) {
+  if (error.message.includes('Input file') || error.message.includes('required')) {
+    return 'INVALID_INPUT';
+  }
+  if (error.message.includes('JSON')) {
+    return 'INVALID_JSON';
+  }
+  if (error.message.includes('No schemas') || error.message.includes('Empty or invalid')) {
+    return 'NO_SCHEMAS';
+  }
+  if (error.message.includes('permission') || error.message.includes('denied')) {
+    return 'PERMISSION_DENIED';
+  }
+  if (error.message.includes('Single-file output')) {
+    return 'SINGLE_FILE_NOT_SUPPORTED';
+  }
+  if (error.message.includes('is a file, expected a directory')) {
+    return 'INVALID_OUTPUT_PATH';
+  }
+  return 'UNKNOWN';
 }
 
 module.exports = { generate };

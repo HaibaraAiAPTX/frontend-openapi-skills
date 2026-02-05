@@ -1,0 +1,25 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Smoke", "version": "1.0.0" },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "user_status": {
+        "description": "User status",
+        "type": "string",
+        "enum": ["active", "on-hold", "1st"]
+      },
+      "user-profile": {
+        "type": "object",
+        "required": ["id", "email", "user-status"],
+        "properties": {
+          "id": { "type": "integer" },
+          "email": { "type": "string" },
+          "user-status": { "$ref": "#/components/schemas/user_status" },
+          "class": { "type": "string" }
+        }
+      }
+    }
+  }
+}
+

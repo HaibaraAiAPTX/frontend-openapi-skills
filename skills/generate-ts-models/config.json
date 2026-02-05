@@ -27,9 +27,9 @@
   },
   "output": {
     "addWarningHeader": true,
-    "mode": "auto",
     "generateIndex": true,
     "fileExtension": ".ts",
     "indexFileName": "index.ts"
   }
 }
+
