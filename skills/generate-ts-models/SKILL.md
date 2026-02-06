@@ -1,6 +1,6 @@
 ---
 name: generate-ts-models
-description: Use when you have an OpenAPI/Swagger JSON specification and need TypeScript type definitions for schemas, enums, with automatic index.ts barrel file generation
+description: "Use when you have an OpenAPI/Swagger JSON specification and need TypeScript type definitions for schemas, enums, with automatic index.ts barrel file generation"
 ---
 
 # Generate TypeScript Models

@@ -1,6 +1,6 @@
 ---
 name: materal-enum-adapter
-description: Fetches Materal Framework enum data from API for TypeScript enum generation. Use when: (1) Working with Materal Framework OpenAPI specs, (2) Need real enum values from API (not schema-only), (3) Generating TypeScript enums with Chinese-to-English translations via AI.
+description: "Fetches Materal Framework enum data from API for TypeScript enum generation. Use when: (1) Working with Materal Framework OpenAPI specs, (2) Need real enum values from API (not schema-only), (3) Generating TypeScript enums with Chinese-to-English translations via AI."
 ---
 
 # Materal Framework Enum Adapter

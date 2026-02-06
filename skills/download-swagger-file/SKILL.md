@@ -1,6 +1,6 @@
 ---
 name: download-swagger-file
-description: Download OpenAPI/Swagger specification files from a URL. Use for: (1) Fetching API specs from remote servers, (2) Saving OpenAPI JSON locally, (3) Preparing specs for TypeScript model generation.
+description: "Download OpenAPI/Swagger specification files from a URL. Use for: (1) Fetching API specs from remote servers, (2) Saving OpenAPI JSON locally, (3) Preparing specs for TypeScript model generation."
 ---
 
 # Download Swagger/OpenAPI File
