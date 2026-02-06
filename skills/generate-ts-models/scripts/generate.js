@@ -103,12 +103,30 @@ function parseEnumValuesFromBody(enumBody) {
   const values = [];
   const lines = enumBody.split(/\r?\n/);
 
+  let currentDescription = '';
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('/**') || trimmed.startsWith('*')) {
+
+    // Extract description from JSDoc comment
+    if (trimmed.startsWith('/**')) {
+      currentDescription = '';
+      continue;
+    }
+    if (trimmed.startsWith('*') && !trimmed.includes('*/')) {
+      const descMatch = trimmed.match(/^\*\s*(.+)$/);
+      if (descMatch) {
+        currentDescription = descMatch[1].trim();
+      }
+      continue;
+    }
+    if (trimmed === '*/') {
+      continue;
+    }
+    if (!trimmed) {
       continue;
     }
 
+    // Parse enum value line
     const match = trimmed.match(/^(\w+)\s*=\s*(.+?)(?:,|$)/);
     if (match) {
       let value = match[2].trim();
@@ -121,8 +139,10 @@ function parseEnumValuesFromBody(enumBody) {
       values.push({
         key: match[1],
         value: value,
-        isString: isString
+        isString: isString,
+        description: currentDescription
       });
+      currentDescription = '';
     }
   }
 
@@ -254,6 +274,9 @@ function renderModel(model, knownTypes = new Set()) {
     }
     output += `export enum ${model.name} {\n`;
     for (const val of model.values) {
+      if (val.description) {
+        output += `  /** ${val.description} */\n`;
+      }
       output += `  ${val.key} = ${val.isString ? `"${val.value}"` : val.value}`;
       if (val !== model.values[model.values.length - 1]) {
         output += ',';

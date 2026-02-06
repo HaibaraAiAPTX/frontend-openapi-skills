@@ -153,9 +153,15 @@ function validateTranslationData(data) {
 }
 
 function generateEnumFile(enumData, outputPath) {
-  const { name, values } = enumData;
+  const { name, values, description } = enumData;
 
-  let content = `export enum ${name} {\n`;
+  let content = '/**\n * Auto-generated from OpenAPI specification\n * Do not edit manually\n */\n\n';
+
+  if (description) {
+    content += `/**\n * ${description}\n */\n`;
+  }
+
+  content += `export enum ${name} {\n`;
 
   const sortedValues = [...values].sort((a, b) => {
     if (typeof a.key === 'number' && typeof b.key === 'number') {
@@ -167,6 +173,11 @@ function generateEnumFile(enumData, outputPath) {
   for (const value of sortedValues) {
     const key = value.key;
     const englishName = value.englishName;
+    const chineseName = value.chineseName || '';
+
+    if (chineseName) {
+      content += `  /** ${chineseName} */\n`;
+    }
     content += `  ${englishName} = ${typeof key === 'number' ? key : `"${key}"`},\n`;
   }
 
