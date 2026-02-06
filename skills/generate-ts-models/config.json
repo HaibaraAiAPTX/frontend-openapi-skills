@@ -22,7 +22,7 @@
   },
   "naming": {
     "interface": "PascalCase",
-    "property": "camelCase",
+    "property": "preserve",
     "enum": "PascalCase"
   },
   "output": {
