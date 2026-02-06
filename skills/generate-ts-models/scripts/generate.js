@@ -108,6 +108,15 @@ function parseEnumValuesFromBody(enumBody) {
     const trimmed = line.trim();
 
     // Extract description from JSDoc comment
+    if (trimmed.startsWith('/**') && trimmed.endsWith('*/')) {
+      const descMatch = trimmed.match(/^\/\*\*\s*(.+?)\s*\*\/$/);
+      if (descMatch) {
+        currentDescription = descMatch[1].trim();
+      } else {
+        currentDescription = '';
+      }
+      continue;
+    }
     if (trimmed.startsWith('/**')) {
       currentDescription = '';
       continue;
@@ -126,7 +135,6 @@ function parseEnumValuesFromBody(enumBody) {
       continue;
     }
 
-    // Parse enum value line
     const match = trimmed.match(/^(\w+)\s*=\s*(.+?)(?:,|$)/);
     if (match) {
       let value = match[2].trim();
@@ -151,13 +159,26 @@ function parseEnumValuesFromBody(enumBody) {
 
 function parseExistingEnumValuesFromContent(content, enumName) {
   try {
-    const enumRegex = new RegExp(`export enum\\s+${escapeRegExp(enumName)}\\s*\\{([\\s\\S]*?)\\}`, 'm');
+    const enumRegex = new RegExp(`export enum\\s+${escapeRegExp(enumName)}\\s*\\{`, 'm');
     const enumMatch = enumRegex.exec(content);
     if (!enumMatch) {
       return [];
     }
 
-    return parseEnumValuesFromBody(enumMatch[1]);
+    const startIndex = enumMatch.index + enumMatch[0].length;
+    let braceCount = 1;
+    let endIndex = startIndex;
+
+    while (endIndex < content.length && braceCount > 0) {
+      if (content[endIndex] === '{') braceCount++;
+      if (content[endIndex] === '}') braceCount--;
+      endIndex++;
+    }
+
+    if (braceCount !== 0) return [];
+
+    const enumBody = content.substring(startIndex, endIndex - 1);
+    return parseEnumValuesFromBody(enumBody);
   } catch (error) {
     console.error(`Warning: Failed to parse existing enum from content: ${error.message}`);
     return [];
@@ -541,9 +562,24 @@ function parseExistingEnumFile(filePath, enumName) {
       return parseExistingEnumValuesFromContent(content, enumName);
     }
 
-    const enumMatch = content.match(/export enum\s+(\w+)\s*\{([\s\S]*?)\}/);
+    const enumMatch = content.match(/export enum\s+(\w+)\s*\{/);
     if (!enumMatch) return [];
-    return parseEnumValuesFromBody(enumMatch[2]);
+
+    // Find the closing brace by counting braces
+    const startIndex = enumMatch.index + enumMatch[0].length;
+    let braceCount = 1;
+    let endIndex = startIndex;
+
+    while (endIndex < content.length && braceCount > 0) {
+      if (content[endIndex] === '{') braceCount++;
+      if (content[endIndex] === '}') braceCount--;
+      endIndex++;
+    }
+
+    if (braceCount !== 0) return [];
+
+    const enumBody = content.substring(startIndex, endIndex - 1);
+    return parseEnumValuesFromBody(enumBody);
   } catch (error) {
     console.error(`Warning: Failed to parse existing enum file: ${error.message}`);
     return [];
@@ -579,7 +615,7 @@ function generateToFolder(interfaces, enums, outputDir, config, enumProtectStrat
     let finalValues = enumItem.values;
 
     const existingFile = path.join(outputDir, fileName);
-    existingValues = parseExistingEnumFile(existingFile);
+    existingValues = parseExistingEnumFile(existingFile, enumItem.name);
 
     if (enumProtectStrategy !== 'none' && enumProtectStrategy !== 'always') {
       preservedKeys = parseFileHeader(existingFile);
