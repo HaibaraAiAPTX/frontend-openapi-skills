@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
+const path = require('path');
 const http = require('http');
 const https = require('https');
 
@@ -24,12 +25,23 @@ function fail(message, extra = {}) {
 function detectMateralFramework(spec) {
   const paths = spec.paths || {};
   const enumPaths = Object.keys(paths).filter(p =>
-    p.includes('/MainAPI/Enums/GetAll')
+    p.includes('/Enums/GetAll')
   );
+
+  // Extract the namespace prefix (everything before /Enums/GetAll)
+  // Works for any gateway namespace: /MainAPI, /GatewayAPI, etc.
+  let namespacePrefix = '';
+  if (enumPaths.length > 0) {
+    const namespaceMatch = enumPaths[0].match(/^(.*?)(?=\/Enums\/GetAll)/);
+    if (namespaceMatch) {
+      namespacePrefix = namespaceMatch[1];
+    }
+  }
 
   return {
     detected: enumPaths.length > 0,
-    enumEndpoints: enumPaths
+    enumEndpoints: enumPaths,
+    namespace: namespacePrefix
   };
 }
 
@@ -85,8 +97,8 @@ async function fetchWithRetry(url, options = {}) {
   }
 }
 
-async function fetchEnumFromAPI(baseUrl, enumName) {
-  const endpoint = `/MainAPI/Enums/GetAll${enumName}`;
+async function fetchEnumFromAPI(baseUrl, enumName, namespace = '') {
+  const endpoint = `${namespace}/Enums/GetAll${enumName}`;
   const url = new URL(endpoint, baseUrl).toString();
 
   try {
@@ -111,6 +123,75 @@ function readSpecFile(specFile) {
   }
 }
 
+function readTranslationFile(translationFile) {
+  try {
+    const content = fs.readFileSync(translationFile, 'utf8');
+    return JSON.parse(content);
+  } catch (error) {
+    fail('Failed to read or parse translation file (JSON only)', { details: error.message });
+  }
+}
+
+function validateTranslationData(data) {
+  if (!data.enumData || !Array.isArray(data.enumData)) {
+    fail('Invalid translation data: missing or invalid enumData array');
+  }
+
+  for (const enumData of data.enumData) {
+    if (!enumData.name || !enumData.values || !Array.isArray(enumData.values)) {
+      fail(`Invalid enum data for ${enumData.name || 'unknown'}: missing name or values`);
+    }
+
+    for (const value of enumData.values) {
+      if (value.key === undefined || value.key === null || value.englishName === undefined || value.englishName === null) {
+        fail(`Invalid value in ${enumData.name}: missing key or englishName`);
+      }
+    }
+  }
+
+  return data;
+}
+
+function generateEnumFile(enumData, outputPath) {
+  const { name, values } = enumData;
+
+  let content = `export enum ${name} {\n`;
+
+  const sortedValues = [...values].sort((a, b) => {
+    if (typeof a.key === 'number' && typeof b.key === 'number') {
+      return a.key - b.key;
+    }
+    return 0;
+  });
+
+  for (const value of sortedValues) {
+    const key = value.key;
+    const englishName = value.englishName;
+    content += `  ${englishName} = ${typeof key === 'number' ? key : `"${key}"`},\n`;
+  }
+
+  content += '}\n';
+
+  fs.writeFileSync(outputPath, content, 'utf8');
+  console.error(`Generated: ${outputPath}`);
+}
+
+function generateEnumFiles(translationData, outputDir) {
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  for (const enumData of translationData.enumData) {
+    const filePath = path.join(outputDir, `${enumData.name}.ts`);
+    generateEnumFile(enumData, filePath);
+  }
+
+  console.error('');
+  console.error(`Generated ${translationData.enumData.length} enum files in ${outputDir}`);
+  console.error(`Note: index.ts is not generated (already exists from generate-ts-models)`);
+}
+
+
 function findEnumInSpec(spec, enumName) {
   const schemas = spec.components?.schemas || spec.definitions || {};
 
@@ -123,32 +204,7 @@ function findEnumInSpec(spec, enumName) {
   return null;
 }
 
-async function main() {
-  const args = process.argv.slice(2);
-
-  if (args.length < 2) {
-    console.error('Usage: node adapter.js <spec-file> --base-url <url>');
-    console.error('');
-    console.error('Options:');
-    console.error('  --base-url <url>  : Materal API base URL (required)');
-    printJson({ success: false, error: 'Invalid arguments' });
-    process.exit(1);
-  }
-
-  const specFile = args[0];
-  let baseUrl = null;
-
-  for (let i = 1; i < args.length; i++) {
-    if (args[i] === '--base-url' && args[i + 1]) {
-      baseUrl = args[i + 1];
-      i++;
-    }
-  }
-
-  if (!baseUrl) {
-    fail('--base-url is required');
-  }
-
+async function fetchCommand(specFile, baseUrl) {
   console.error(`Materal Framework Enum Adapter`);
   console.error(`================================`);
   console.error(`Spec file: ${specFile}`);
@@ -171,6 +227,7 @@ async function main() {
   }
 
   console.error(`Detected ${detection.enumEndpoints.length} enum endpoints`);
+  console.error(`Namespace: ${detection.namespace || '(root)'}`);
 
   const enumNames = extractEnumNamesFromPaths(detection.enumEndpoints);
   console.error(`Enum names: ${enumNames.join(', ')}`);
@@ -189,7 +246,7 @@ async function main() {
     const description = enumSchema?.description || '';
 
     console.error(`Fetching ${enumName}...`);
-    const apiData = await fetchEnumFromAPI(baseUrl, enumName);
+    const apiData = await fetchEnumFromAPI(baseUrl, enumName, detection.namespace);
 
     if (!apiData) {
       console.error(`  Skipped ${enumName}: Failed to fetch from API`);
@@ -223,6 +280,110 @@ async function main() {
   console.error(`  Enums skipped: ${results.enumsSkipped}`);
 
   printJson(results);
+}
+
+function generateCommand(translationFile, outputDir) {
+  console.error(`Materal Framework Enum Generator`);
+  console.error(`=================================`);
+  console.error(`Translation file: ${translationFile}`);
+  console.error(`Output directory: ${outputDir}`);
+  console.error('');
+
+  const translationData = readTranslationFile(translationFile);
+  const validatedData = validateTranslationData(translationData);
+
+  generateEnumFiles(validatedData, outputDir);
+
+  printJson({
+    success: true,
+    generated: validatedData.enumData.length,
+    enums: validatedData.enumData.map(e => e.name),
+    outputDir: outputDir
+  });
+}
+
+
+async function main() {
+  const args = process.argv.slice(2);
+
+  if (args.length === 0) {
+    printUsage();
+    process.exit(1);
+  }
+
+  const command = args[args.length - 1];
+
+  if (command === 'fetch') {
+    let specFile = null;
+    let baseUrl = null;
+
+    for (let i = 0; i < args.length - 1; i++) {
+      if (args[i] === '--base-url' && args[i + 1]) {
+        baseUrl = args[i + 1];
+        i++;
+      } else if (!args[i].startsWith('--') && !specFile) {
+        specFile = args[i];
+      }
+    }
+
+    if (!specFile || !baseUrl) {
+      console.error('Error: Missing required arguments for fetch command');
+      console.error('');
+      printUsage();
+      process.exit(1);
+    }
+
+    await fetchCommand(specFile, baseUrl);
+  } else if (command === 'generate') {
+    let translationFile = null;
+    let outputDir = './src/enums';
+
+    for (let i = 0; i < args.length - 1; i++) {
+      if (args[i] === '--output-dir' && args[i + 1]) {
+        outputDir = args[i + 1];
+        i++;
+      } else if (!args[i].startsWith('--') && !translationFile) {
+        translationFile = args[i];
+      }
+    }
+
+    if (!translationFile) {
+      console.error('Error: Missing translation file for generate command');
+      console.error('');
+      printUsage();
+      process.exit(1);
+    }
+
+    generateCommand(translationFile, outputDir);
+  } else {
+    console.error(`Error: Unknown command '${command}'`);
+    console.error('');
+    printUsage();
+    process.exit(1);
+  }
+}
+
+function printUsage() {
+  console.error('Materal Framework Enum Adapter');
+  console.error('=================================');
+  console.error('');
+  console.error('Usage:');
+  console.error('  node adapter.js <spec-file> --base-url <url> fetch');
+  console.error('  node adapter.js <translation-file> [--output-dir <dir>] generate');
+  console.error('');
+  console.error('Commands:');
+  console.error('  fetch       - Fetch enum data from API and output JSON');
+  console.error('  generate    - Generate TypeScript enum files from translation data');
+  console.error('');
+  console.error('Fetch options:');
+  console.error('  --base-url <url>   : Materal API base URL (required)');
+  console.error('');
+  console.error('Generate options:');
+  console.error('  --output-dir <dir>  : Output directory (default: ./src/enums)');
+  console.error('');
+  console.error('Examples:');
+  console.error('  node adapter.js openapi.json --base-url http://localhost:5000 fetch');
+  console.error('  node adapter.js translations.json --output-dir ./src/types generate');
 }
 
 if (require.main === module) {
