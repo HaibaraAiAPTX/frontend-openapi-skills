@@ -2,10 +2,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 // Configuration
 const DEFAULT_OUTPUT = 'openapi.json';
+const TIMEOUT_MS = 30000; // 30 seconds
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -41,61 +41,91 @@ if (!url) {
   fail('URL is required', 'MISSING_URL');
 }
 
-// Download using curl
-const tempFile = path.join(__dirname, `../.temp_${Date.now()}`);
-
 try {
-  log(`Downloading OpenAPI specification from: ${url}`);
-
-  // Use curl to download
-  execSync(`curl -fsSL "${url}" -o "${tempFile}"`, {
-    stdio: ['pipe', 'pipe', 'pipe'],
-    maxBuffer: 50 * 1024 * 1024 // 50MB
-  });
-
-  // Read and validate content
-  const content = fs.readFileSync(tempFile, 'utf8').trim();
-
-  // Check if content looks like JSON
-  if (!content.startsWith('{') && !content.startsWith('[') && !content.startsWith('openapi:') && !content.startsWith('swagger:')) {
-    fs.unlinkSync(tempFile);
-    fail('Downloaded file is not a valid OpenAPI specification', 'INVALID_FORMAT');
-  }
-
-  // Get file size
-  const stats = fs.statSync(tempFile);
-  const size = stats.size;
-
-  // Create output directory if needed
-  const outputDir = path.dirname(outputPath);
-  if (outputDir !== '.' && !fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
-  // Move to output path
-  fs.renameSync(tempFile, outputPath);
-
-  // Success output
-  console.log(JSON.stringify({
-    success: true,
-    filePath: outputPath,
-    size: size,
-    url: url
-  }));
-
-} catch (error) {
-  // Clean up temp file if it exists
-  if (fs.existsSync(tempFile)) {
-    fs.unlinkSync(tempFile);
-  }
-
-  if (error.code === 'ENOENT') {
-    fail('curl command not found', 'MISSING_CURL');
-  } else if (error.status === 22) {
-    fail('Failed to download file from URL', 'DOWNLOAD_FAILED');
-  } else if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
-    fail('Request timeout', 'API_TIMEOUT');
-  } else {
-    fail(error.message, 'DOWNLOAD_FAILED');
-  }
+  new URL(url);
+} catch {
+  fail('Invalid URL format', 'INVALID_URL');
 }
+
+// Download using native fetch
+(async () => {
+  let tempFile = null;
+
+  try {
+    log(`Downloading OpenAPI specification from: ${url}`);
+
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    // Fetch the URL
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    clearTimeout(timeoutId);
+
+    // Check response status
+    if (!response.ok) {
+      fail(`HTTP ${response.status}: ${response.statusText}`, 'DOWNLOAD_FAILED');
+    }
+
+    // Get content type
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html') || contentType.includes('text/plain')) {
+      fail('URL points to an HTML page, not a JSON file. Please provide the direct JSON file URL.', 'INVALID_FORMAT');
+    }
+
+    // Get content
+    const content = await response.text();
+
+    // Check if content looks like JSON
+    const trimmed = content.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      fail('Downloaded file is not a valid OpenAPI specification (must start with { or [)', 'INVALID_FORMAT');
+    }
+
+    // Create temp file
+    tempFile = path.join(__dirname, `../.temp_${Date.now()}`);
+    fs.writeFileSync(tempFile, content, 'utf8');
+
+    // Get file size
+    const stats = fs.statSync(tempFile);
+    const size = stats.size;
+
+    // Create output directory if needed
+    const outputDir = path.dirname(outputPath);
+    if (outputDir !== '.' && !fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Move to output path
+    fs.renameSync(tempFile, outputPath);
+    tempFile = null;
+
+    // Success output
+    console.log(JSON.stringify({
+      success: true,
+      filePath: outputPath,
+      size: size,
+      url: url
+    }));
+
+  } catch (error) {
+    // Clean up temp file if it exists
+    if (tempFile && fs.existsSync(tempFile)) {
+      fs.unlinkSync(tempFile);
+    }
+
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      fail('Request timeout after 30 seconds', 'API_TIMEOUT');
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      fail('Failed to connect to URL', 'DOWNLOAD_FAILED');
+    } else {
+      fail(error.message || 'Unknown error occurred', 'DOWNLOAD_FAILED');
+    }
+  }
+})();

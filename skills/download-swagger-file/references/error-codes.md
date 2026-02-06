@@ -1,16 +1,16 @@
-# Error Codes
+# 错误代码
 
-Error codes for downloading OpenAPI specifications.
+下载 OpenAPI 规范的错误代码。
 
-| Code | Message | Cause | Solution |
+| 代码 | 消息 | 原因 | 解决方案 |
 |------|---------|-------|----------|
-| `MISSING_URL` | URL is required | Missing URL argument | Provide the URL parameter |
-| `DOWNLOAD_FAILED` | Failed to download file from URL | Network error or invalid URL | Verify URL accessibility |
-| `INVALID_FORMAT` | Downloaded file does not look like JSON | Response is not JSON | Check URL points to raw JSON |
-| `PERMISSION_DENIED` | Permission denied writing to output path | File system permission issue | Check write permissions |
-| `UNKNOWN` | Unknown error | Unhandled exception | Check console output |
+| `MISSING_URL` | 需要提供 URL | 缺少 URL 参数 | 提供 URL 参数 |
+| `DOWNLOAD_FAILED` | 无法从 URL 下载文件 | 网络错误或无效的 URL | 验证 URL 的可访问性 |
+| `INVALID_FORMAT` | 下载的文件看起来不像 JSON | 响应不是 JSON | 检查 URL 指向原始 JSON |
+| `INVALID_URL` | 无效的 URL 格式 | URL 格式不正确 | 检查 URL 格式（如 https://...） |
+| `API_TIMEOUT` | 请求超时（30 秒） | 服务器响应太慢 | 重试或检查网络 |
 
-## Error Response Format
+## 错误响应格式
 
 ```json
 {
@@ -20,27 +20,25 @@ Error codes for downloading OpenAPI specifications.
 }
 ```
 
-## Troubleshooting
+## 故障排除
 
 ### DOWNLOAD_FAILED
 
-1. Test URL in browser
-2. Verify server has CORS enabled (if accessed from browser)
-3. Check for redirects (follow with `-L` in curl)
+1. 在浏览器中测试 URL
+2. 验证服务器可访问性
+3. 检查网络连接
 
 ### INVALID_FORMAT
 
-The URL may point to an HTML documentation page instead of raw JSON:
+URL 可能指向 HTML 文档页面而不是原始 JSON：
 
-- **Wrong:** `https://petstore.swagger.io/` (HTML docs page)
-- **Right:** `https://petstore.swagger.io/v2/swagger.json` (raw JSON)
+- **错误：** `https://petstore.swagger.io/`（HTML 文档页面）
+- **正确：** `https://petstore.swagger.io/v2/swagger.json`（原始 JSON）
 
-### PERMISSION_DENIED
+### API_TIMEOUT
 
-```bash
-# Create directory first
-mkdir -p ./specs
+服务器响应超时（30秒），可以：
+1. 重试下载
+2. 检查网络连接
+3. 确认服务器是否正常运行
 
-# Check permissions
-ls -la ./specs
-```
