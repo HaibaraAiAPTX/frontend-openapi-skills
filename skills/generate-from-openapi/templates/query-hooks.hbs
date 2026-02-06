@@ -2,11 +2,15 @@
 // 本文件由 generate-from-openapi skill 自动生成
 // 请勿手动编辑
 
-import type { AppError } from "@repo/api-core";
+{{#if config.imports.error}}
+{{config.imports.error}}
+{{/if}}
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { UseMutationOptions, UseQueryOptions } from "@tanstack/react-query";
-import type { Api } from "@repo/api";
+{{#if config.imports.api}}
+{{config.imports.api}}
+{{/if}}
 
 type Fn = (...args: any[]) => any;
 type Args<F extends Fn> = Parameters<F>[0];

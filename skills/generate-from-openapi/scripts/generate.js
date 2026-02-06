@@ -21,6 +21,7 @@ function parseArgs(args) {
     importDomains: null,
     importApiCore: null,
     importError: null,
+    importApi: null,
     outputApi: null,
     outputHooks: null,
     noHooks: false,
@@ -41,6 +42,9 @@ function parseArgs(args) {
         break;
       case "--import-error":
         params.importError = args[++i];
+        break;
+      case "--import-api":
+        params.importApi = args[++i];
         break;
       case "--output-api":
         params.outputApi = args[++i];
@@ -106,12 +110,13 @@ function parseQueryRules(rulesString) {
 function buildConfig(params) {
   const config = {
     imports: {
-      domains: params.importDomains || 'import type * as Domains from "@repo/domains";',
-      apiCore: params.importApiCore || 'import type { ApiRequestOptions } from "@repo/api-core";',
-      error: params.importError || 'import type { AppError } from "@repo/api-core";',
+      domains: params.importDomains || null,
+      apiCore: params.importApiCore || null,
+      error: params.importError || null,
+      api: params.importApi || null,
     },
-    outputApi: params.outputApi || path.join(repoRoot, "packages", "api", "src", "generated.ts"),
-    outputHooks: params.noHooks ? null : (params.outputHooks || path.join(repoRoot, "packages", "api-query", "src", "generatedHooks.ts")),
+    outputApi: params.outputApi || null,
+    outputHooks: params.noHooks ? null : (params.outputHooks || null),
     noHooks: params.noHooks,
     verbose: params.verbose,
     dryRun: params.dryRun,

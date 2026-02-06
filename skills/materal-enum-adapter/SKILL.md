@@ -100,16 +100,20 @@ node skills/materal-enum-adapter/scripts/adapter.js translations.json --output-d
 
 ### generate input (AI creates this)
 
-Transform fetch output by replacing `value` with `englishName`:
+Transform fetch output by:
+1. Keeping `description` field from fetch output
+2. Replacing `value` with `englishName`
+3. Adding `chineseName` for per-value comments
 
 ```json
 {
   "enumData": [
     {
       "name": "Role",
+      "description": "角色",
       "values": [
-        {"key": 0, "englishName": "Administrator", "originalValue": "管理员"},
-        {"key": 1, "englishName": "User", "originalValue": "用户"}
+        {"key": 0, "englishName": "Administrator", "chineseName": "管理员", "originalValue": "管理员"},
+        {"key": 1, "englishName": "User", "chineseName": "用户", "originalValue": "用户"}
       ]
     }
   ]
@@ -118,8 +122,10 @@ Transform fetch output by replacing `value` with `englishName`:
 
 **Required fields:**
 - `enumData[].name` - Enum name (PascalCase)
+- `enumData[].description` - Enum description (from fetch output, generates file-level comment)
 - `enumData[].values[].key` - Enum key (number or string)
-- `enumData[].values[].englishName` - English name (PascalCase)
+- `enumData[].values[].englishName` - English name (PascalCase, becomes enum member name)
+- `enumData[].values[].chineseName` - Chinese name (generates per-value comment, optional but recommended)
 - `enumData[].values[].originalValue` - Original Chinese value (optional)
 
 ### generate output (summary)
@@ -142,8 +148,18 @@ src/enums/
 
 **Role.ts:**
 ```typescript
+/**
+ * Auto-generated from OpenAPI specification
+ * Do not edit manually
+ */
+
+/**
+ * 角色
+ */
 export enum Role {
+  /** 管理员 */
   Administrator = 0,
+  /** 用户 */
   User = 1
 }
 ```
@@ -161,8 +177,9 @@ node skills/generate-ts-models/scripts/generate.js openapi.json ./src/types
 # Step 2: Fetch real enum values from API
 node skills/materal-enum-adapter/scripts/adapter.js openapi.json --base-url http://localhost:5000 fetch > raw.json
 
-# Step 3: AI translates values (batch - single API call)
-# Creates translations.json with englishName field
+ # Step 3: AI translates values (batch - single API call)
+ # Creates translations.json with englishName, description, and chineseName fields
+ # IMPORTANT: Keep the `description` field from fetch output and add `chineseName` to each value
 
 # Step 4: Generate translated enum files (overwrites only enum files)
 node skills/materal-enum-adapter/scripts/adapter.js translations.json --output-dir ./src/types generate

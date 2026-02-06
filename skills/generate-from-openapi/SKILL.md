@@ -1,12 +1,23 @@
+---
+name: generate-from-openapi
+description: Generate TypeScript API clients and TanStack Query hooks from OpenAPI/Swagger specifications. Use when you need to: (1) Create type-safe API clients, (2) Generate React Query hooks, (3) Convert OpenAPI specs to TypeScript code
+---
+
 # 从 OpenAPI 生成 API 客户端
 
 ## 适用场景
 
 当你拥有 OpenAPI/Swagger 规范并且需要 TypeScript API 客户端或 React Query hooks 时使用。
 
+## 核心原则
+
+**询问，不要猜测**：如果对配置不确定，先询问用户。
+
 ## LLM 行为
 
-### 步骤 0：依赖检查（必做）
+### 步骤 0：依赖检查（LLM 执行）
+
+**注意**：依赖检查是 LLM 的职责，generate.js 脚本不自动执行依赖安装。
 
 在使用本技能前，必须检查 `handlebars` 依赖是否已安装：
 

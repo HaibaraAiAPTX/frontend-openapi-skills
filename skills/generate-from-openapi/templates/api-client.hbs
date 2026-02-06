@@ -2,8 +2,12 @@
 // 本文件由 generate-from-openapi skill 自动生成
 // 请勿手动编辑
 
-import type * as Domains from "@repo/domains";
-import type { ApiRequestOptions } from "@repo/api-core";
+{{#if config.imports.domains}}
+{{config.imports.domains}}
+{{/if}}
+{{#if config.imports.apiCore}}
+{{config.imports.apiCore}}
+{{/if}}
 
 export interface ApiClientLike {
   request<TResponse = unknown, TBody = unknown>(options: ApiRequestOptions<TBody>): Promise<TResponse>;
