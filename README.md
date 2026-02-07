@@ -1,64 +1,64 @@
-# Frontend OpenAPI Skills
+# Frontend OpenAPI 技能集
 
 ![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-blue?style=flat-square)
-![OpenAPI](https://img.shields.io/badge/OpenAPI-2.0%20%7C%203.x-green?style=flat-square)
+![OpenAPI](https://img.shields.io/badge/OpenAPI-3.x-JSON%20only-green?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)
 
-A collection of Claude Code skills for generating TypeScript models (interfaces/enums) from OpenAPI/Swagger specifications.
+这是一个 Claude Code 技能集，用于从 OpenAPI 3.x 规范生成 TypeScript 模型（接口/枚举）。
 
-Automatically generate type-safe model code from your OpenAPI definitions — eliminating manual type definitions and reducing boilerplate.
+从 OpenAPI 定义自动生成类型安全的模型代码 — 消除手动类型定义，减少样板代码。
 
-## Features
+## 特性
 
-- 🚀 **Automated TypeScript Generation** — Convert OpenAPI schemas to TypeScript interfaces and types
-- 📥 **Remote Spec Download** — Fetch OpenAPI JSON specifications from any URL
-- 🎯 **Type Safety** — Generate fully typed models
-- ⚙️ **Configurable** — Customize type mappings, naming conventions, and output formats
-- 📦 **Easy Integration** — Works seamlessly with Claude Code
+- 🚀 **自动化 TypeScript 生成** — 将 OpenAPI 模式转换为 TypeScript 接口和类型
+- 📥 **远程规范下载** — 从任何 URL 获取 OpenAPI JSON 规范
+- 🎯 **类型安全** — 生成完全类型化的模型
+- ⚙️ **可配置** — 自定义类型映射、命名约定和输出格式
+- 📦 **易于集成** — 与 Claude Code 无缝协作
 
-## Available Skills
+## 可用技能
 
 ### [download-swagger-file](./skills/download-swagger-file)
 
-Downloads OpenAPI/Swagger specification files from remote URLs.
+从远程 URL 下载 OpenAPI 3.x JSON 规范文件。
 
 ### [generate-ts-models](./skills/generate-ts-models)
 
-Generates TypeScript type declarations (interfaces, enums) from OpenAPI/Swagger specifications:
+从 OpenAPI 3.x JSON 规范生成 TypeScript 类型声明（接口、枚举）：
 
-- One file per model with automatic type imports and an `index.ts` barrel file for easy navigation
+- 每个模型一个文件，具有自动类型导入和用于便捷导航的 `index.ts` 桶文件
 
 ### [materal-enum-adapter](./skills/materal-enum-adapter)
 
-Detects Materal Framework enum endpoints, fetches real enum values from the API, and outputs JSON for AI-assisted enum translation.
+检测 Materal Framework 枚举端点，从 API 获取真实的枚举值，并输出 JSON 以供 AI 辅助枚举翻译。
 
-## Installation
+## 安装
 ```bash
-# Add this repository as a marketplace
+# 将此仓库添加为市场
 /plugin marketplace add https://github.com/HaibaraAiAPTX/frontend-openapi-skills
 
-# Install the plugin
+# 安装插件
 /plugin install frontend-openapi-skills@frontend-openapi-skills
 ```
 
-## Usage
+## 使用方法
 
-### Basic Usage
+### 基本用法
 
-Download and convert OpenAPI spec to TypeScript models:
+下载并转换 OpenAPI 3.x JSON 规范为 TypeScript 模型：
 
 ```
 Download https://petstore.swagger.io/v2/swagger.json file and convert to TypeScript models
 ```
 
-Generate one TypeScript file per model for better organization:
+为每个模型生成一个 TypeScript 文件以便更好地组织：
 
 ```
 Download https://api.example.com/swagger.json file and convert to TypeScript models in folder mode
 ```
 
-**Output Example (Folder Mode):**
+**输出示例（文件夹模式）：**
 
 ```
 src/types/
@@ -69,7 +69,7 @@ src/types/
 └── index.ts
 ```
 
-Each file automatically imports its dependencies:
+每个文件自动导入其依赖项：
 
 ```typescript
 // User.ts
@@ -82,53 +82,60 @@ export interface User {
 }
 ```
 
-For detailed configuration options and advanced usage, see [skill documentation](./skills/generate-ts-models/SKILL.md).
+有关详细的配置选项和高级用法，请参阅[技能文档](./skills/generate-ts-models/SKILL.md)。
 
-## Supported OpenAPI Features
+## 支持的 OpenAPI 功能
 
-| Feature | OpenAPI 2.0 | OpenAPI 3.x |
-|----------|--------------|--------------|
-| Basic Types | ✅ | ✅ |
-| Enums | ✅ | ✅ |
-| Arrays | ✅ | ✅ |
-| Objects/Nested | ✅ | ✅ |
-| Required/Optional Fields | ✅ | ✅ |
-| Format Types | ✅ | ✅ |
-| References ($ref) | ✅ | ✅ |
-| Description Support | ✅ | ✅ |
-| Type Imports | ✅ | ✅ |
+**仅支持 OpenAPI 3.x JSON 格式，不支持 Swagger 2.0 和 YAML 格式**
 
-## Contributing
+| 功能 | OpenAPI 3.x |
+|----------|--------------|
+| 基本类型 | ✅ |
+| 枚举 | ✅ |
+| 数组 | ✅ |
+| 对象/嵌套 | ✅ |
+| 必填/可选字段 | ✅ |
+| 格式类型 | ✅ |
+| 引用（$ref） | ✅ |
+| 描述支持 | ✅ |
+| 类型导入 | ✅ |
 
-We welcome contributions! To add a new skill:
+**注意事项：**
+- 仅支持 JSON 格式的 OpenAPI 规范
+- 不支持 YAML 格式
+- 不支持 Swagger 2.0 规范
 
-1. Read the [AGENTS.md](./AGENTS.md) documentation for structure guidelines
-2. Create a new skill directory in `skills/`
-3. Add a `SKILL.md` file with proper frontmatter
-4. Create executable scripts in the `scripts/` directory
-5. Test thoroughly with various OpenAPI specifications
-6. Submit a pull request
+## 贡献
 
-## Development
+我们欢迎贡献！要添加新技能：
+
+1. 阅读 [AGENTS.md](./AGENTS.md) 文档以了解结构指南
+2. 在 `skills/` 中创建新的技能目录
+3. 添加带有适当前言的 `SKILL.md` 文件
+4. 在 `scripts/` 目录中创建可执行脚本
+5. 使用各种 OpenAPI 规范进行彻底测试
+6. 提交拉取请求
+
+## 开发
 
 ```bash
-# Clone repository
+# 克隆仓库
 git clone https://github.com/HaibaraaiAPTX/frontend-openapi-skills.git
 cd frontend-openapi-skills
 
-# Test a skill locally
+# 本地测试技能
 bash skills/download-swagger-file/scripts/download.sh <url>
 
-# Generate TypeScript models (single file mode)
+# 生成 TypeScript 模型（单文件模式）
 bash skills/generate-ts-models/scripts/generate.sh <spec-file> ./src/types/
 
-# Install skills to Claude Code for testing
+# 将技能安装到 Claude Code 进行测试
 cp -r skills/* ~/.claude/skills/
 ```
 
-## License
+## 许可证
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+本项目在 MIT 许可证下授权 — 有关详细信息，请参阅 [LICENSE](./LICENSE) 文件。
 
 ```
 MIT License
@@ -154,11 +161,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Support
+## 支持
 
-- 📖 [Documentation](./AGENTS.md)
-- 🐛 [Issue Tracker](https://github.com/HaibaraaiAPTX/frontend-openapi-skills/issues)
+- 📖 [文档](./AGENTS.md)
+- 🐛 [问题跟踪器](https://github.com/HaibaraaiAPTX/frontend-openapi-skills/issues)
 
-## Acknowledgments
+## 致谢
 
-Built for the Claude Code ecosystem to make API integration faster and safer for frontend developers.
+为 Claude Code 生态系统构建，使前端开发人员的 API 集成更快、更安全。

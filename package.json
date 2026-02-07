@@ -1,0 +1,12 @@
+{
+  "name": "frontend-openapi-skills",
+  "private": true,
+  "type": "commonjs",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
