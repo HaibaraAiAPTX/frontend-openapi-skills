@@ -643,11 +643,17 @@ function generate(inputFile, outputDir) {
 if (require.main === module) {
   const args = process.argv.slice(2);
   const inputFile = args[0];
-  const outputDir = args[1] || './types';
+  const outputDir = args[1];
 
   if (!inputFile) {
     console.error('Error: Input file is required');
     console.log(JSON.stringify({ success: false, error: 'Input file is required' }));
+    process.exit(1);
+  }
+
+  if (!outputDir) {
+    console.error('Error: Output directory is required');
+    console.log(JSON.stringify({ success: false, error: 'Output directory is required. Recommended paths for single projects: ./src/domains, ./src/types, ./src/models. For monorepo: ./packages/api-domains, ./packages/shared-types' }));
     process.exit(1);
   }
 
@@ -681,6 +687,9 @@ if (require.main === module) {
  * Map errors to standardized error codes
  */
 function getErrorCode(error) {
+  if (error.message.includes('Output directory')) {
+    return 'MISSING_OUTPUT_DIR';
+  }
   if (error.message.includes('Input file') || error.message.includes('required')) {
     return 'INVALID_INPUT';
   }

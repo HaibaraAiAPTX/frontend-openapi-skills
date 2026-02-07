@@ -74,6 +74,18 @@ TypeScript 命名约定。
 - 如果属性名是有效的 TypeScript 标识符（非保留字），直接使用
 - 否则使用字符串字面量（如 `'user-name'`）
 
+**属性命名示例（preserve 模式）：**
+
+| OpenAPI 属性名 | TypeScript 输出 | 说明 |
+|----------------|-----------------|------|
+| `name` | `name: string;` | 简单标识符 |
+| `userName` | `userName: string;` | camelCase 保留 |
+| `user_name` | `user_name: string;` | 下划线保留 |
+| `user-name` | `'user-name': string;` | 非标识符，使用字符串字面量 |
+| `user name` | `'user name': string;` | 包含空格，使用字符串字面量 |
+| `class` | `'class': string;` | TypeScript 保留字，使用字符串字面量 |
+| `id` | `id: number;` | 保留字但允许作为属性名 |
+
 支持的命名约定：`PascalCase`, `camelCase`, `preserve`
 
 ### output

@@ -1,0 +1,77 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Simple API",
+    "version": "1.0.0"
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "description": "用户实体",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "用户 ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "用户名"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "邮箱地址"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UserStatus",
+            "description": "用户状态"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "是否激活"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          }
+        },
+        "required": ["id", "name", "email"]
+      },
+      "UserStatus": {
+        "type": "string",
+        "enum": ["active", "inactive", "suspended"],
+        "description": "用户状态枚举"
+      },
+      "Product": {
+        "type": "object",
+        "description": "产品实体",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "format": "float"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["id", "name", "price"]
+      },
+      "Priority": {
+        "type": "integer",
+        "enum": [1, 2, 3],
+        "description": "优先级枚举"
+      }
+    }
+  }
+}

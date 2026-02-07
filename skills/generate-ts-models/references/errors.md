@@ -6,6 +6,7 @@ TypeScript 模型生成的标准化错误代码。
 
 | 代码 | 消息 | 原因 | 解决方案 |
 |------|---------|-------|----------|
+| `MISSING_OUTPUT_DIR` | 输出目录必需 | 未提供输出目录参数 | 提供输出目录。单项目建议：./src/domains, ./src/types, ./src/models。Monorepo 建议：./packages/api-domains, ./packages/shared-types |
 | `INVALID_INPUT` | 需要输入文件 / 文件格式错误 | 缺少规范文件参数或文件不是 `.json` 扩展名 | 提供 OpenAPI JSON 文件路径（必须使用 `.json` 扩展名） |
 | `INVALID_JSON` | 解析规范文件失败 | 规范文件中的 JSON 格式错误 | 使用 `jq . spec.json` 验证 JSON 语法 |
 | `NO_SCHEMAS` | 规范中未找到模式 | 空或无效的 OpenAPI 规范 | 检查规范是否包含 `components/schemas`（仅支持 OpenAPI 3.x JSON） |
