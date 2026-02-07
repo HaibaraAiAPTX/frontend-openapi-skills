@@ -3,100 +3,12 @@
 const fs = require('fs');
 const path = require('path');
 
-function renderWarningHeader(preservedKeys = []) {
-  let header = '/**\n * Auto-generated from OpenAPI specification\n';
-  if (preservedKeys.length > 0) {
-    header += ` * @preserve-manual ${preservedKeys.join(', ')}\n`;
-  }
-  header += ' * Do not edit manually\n */\n\n';
-  return header;
-}
-
-function renderPreserveMarker(preservedKeys = []) {
-  if (!preservedKeys || preservedKeys.length === 0) {
-    return '';
-  }
-  return `/**\n * @preserve-manual ${preservedKeys.join(', ')}\n */\n`;
-}
-
-/**
- * Parse the file header to extract @preserve-manual markers
- * Returns an array of preserved enum keys
- */
-function parseFileHeader(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      return [];
-    }
-
-    const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.split('\n');
-
-    for (const line of lines) {
-      const match = line.match(/^\s*\*\s*@preserve-manual\s+(.+)$/);
-      if (match) {
-        const keys = match[1].split(',').map(k => k.trim()).filter(k => k);
-        return keys;
-      }
-    }
-
-    return [];
-  } catch (error) {
-    console.error(`Warning: Failed to parse file header: ${error.message}`);
-    return [];
-  }
-}
-
-function parsePreserveKeysFromContent(content) {
-  const lines = content.split('\n');
-
-  for (const line of lines) {
-    const match = line.match(/^\s*\*\s*@preserve-manual\s+(.+)$/);
-    if (match) {
-      return match[1].split(',').map(k => k.trim()).filter(k => k);
-    }
-  }
-
-  return [];
+function renderWarningHeader() {
+  return '/**\n * Auto-generated from OpenAPI specification\n * Do not edit manually\n */\n\n';
 }
 
 function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function parsePreservedKeysForEnumFromContent(content, enumName) {
-  try {
-    const enumRegex = new RegExp(`export enum\\s+${escapeRegExp(enumName)}\\b`);
-    const enumMatch = enumRegex.exec(content);
-    if (!enumMatch) {
-      return [];
-    }
-
-    const preserved = [];
-    let cursor = enumMatch.index;
-
-    while (true) {
-      const commentEnd = content.lastIndexOf('*/', cursor);
-      if (commentEnd === -1) break;
-
-      const between = content.slice(commentEnd + 2, cursor);
-      if (!/^\s*$/.test(between)) break;
-
-      const commentStart = content.lastIndexOf('/**', commentEnd);
-      if (commentStart === -1) break;
-
-      const block = content.slice(commentStart, commentEnd + 2);
-      const keys = parsePreserveKeysFromContent(block);
-      preserved.push(...keys);
-
-      cursor = commentStart;
-    }
-
-    return Array.from(new Set(preserved));
-  } catch (error) {
-    console.error(`Warning: Failed to parse preserved keys for enum ${enumName}: ${error.message}`);
-    return [];
-  }
 }
 
 function parseEnumValuesFromBody(enumBody) {
@@ -186,20 +98,19 @@ function parseExistingEnumValuesFromContent(content, enumName) {
 }
 
 /**
- * Merge new enum values with preserved manual keys and auto-detected translated keys
+ * Merge new enum values with auto-detected translated keys
  * @param {Array} newValues - New enum values from OpenAPI spec
- * @param {Array} preservedKeys - Keys that should be preserved from existing file
  * @param {Array} existingValues - Existing enum values (if file exists)
  * @returns {Array} - Merged enum values
  */
-function mergeEnumValues(newValues, preservedKeys = [], existingValues = []) {
+function mergeEnumValues(newValues, existingValues = []) {
   // Detect auto-translated keys (keys that are not auto-generated)
   const translatedValues = detectTranslatedEnumValues(existingValues);
 
-  // Build preservation map from both manual preserved keys and auto-detected translated keys
+  // Build preservation map from auto-detected translated keys
   const preservedMap = new Map();
   for (const existing of existingValues) {
-    if ((preservedKeys.includes(existing.key) || translatedValues.has(existing.value))) {
+    if (translatedValues.has(existing.value)) {
       preservedMap.set(existing.value, existing);
     }
   }
@@ -290,9 +201,6 @@ function renderModel(model, knownTypes = new Set()) {
     }
     output += '}\n';
   } else if (model.type === 'enum') {
-    if (model.emitPreserveMarker && model.preservedKeys && model.preservedKeys.length > 0) {
-      output += renderPreserveMarker(model.preservedKeys);
-    }
     output += `export enum ${model.name} {\n`;
     for (const val of model.values) {
       if (val.description) {
@@ -308,24 +216,6 @@ function renderModel(model, knownTypes = new Set()) {
   }
 
   return output;
-}
-
-function renderTemplate(data) {
-  let output = '';
-
-  if (data.addWarningHeader) {
-    output += renderWarningHeader(data.preservedKeys || []);
-  }
-
-  for (const iface of data.interfaces) {
-    output += renderModel({ ...iface, type: 'interface' }, new Set()) + '\n';
-  }
-
-  for (const enumItem of data.enums) {
-    output += renderModel({ ...enumItem, type: 'enum' }, new Set()) + '\n';
-  }
-
-  return output.trim();
 }
 
 const reservedWords = new Set([
@@ -586,7 +476,7 @@ function parseExistingEnumFile(filePath, enumName) {
   }
 }
 
-function generateToFolder(interfaces, enums, outputDir, config, enumProtectStrategy = 'none') {
+function generateToFolder(interfaces, enums, outputDir, config) {
   const generatedFiles = [];
 
   if (!fs.existsSync(outputDir)) {
@@ -610,25 +500,17 @@ function generateToFolder(interfaces, enums, outputDir, config, enumProtectStrat
     const fileName = `${enumItem.name}${config.output.fileExtension}`;
     const filePath = path.join(outputDir, fileName);
 
-    let preservedKeys = [];
     let existingValues = [];
     let finalValues = enumItem.values;
 
     const existingFile = path.join(outputDir, fileName);
     existingValues = parseExistingEnumFile(existingFile, enumItem.name);
 
-    if (enumProtectStrategy !== 'none' && enumProtectStrategy !== 'always') {
-      preservedKeys = parseFileHeader(existingFile);
-
-      if (preservedKeys.length > 0 || existingValues.length > 0) {
-        finalValues = mergeEnumValues(enumItem.values, preservedKeys, existingValues);
-      }
-    } else if (existingValues.length > 0) {
-      // Even without enumProtectStrategy, auto-detect and preserve translated keys
-      finalValues = mergeEnumValues(enumItem.values, [], existingValues);
+    if (existingValues.length > 0) {
+      finalValues = mergeEnumValues(enumItem.values, existingValues);
     }
 
-    const warningHeader = config.output.addWarningHeader ? renderWarningHeader(preservedKeys) : '';
+    const warningHeader = config.output.addWarningHeader ? renderWarningHeader() : '';
     const content = warningHeader + renderModel({ ...enumItem, type: 'enum', values: finalValues }, knownTypes);
     fs.writeFileSync(filePath, content, 'utf8');
     generatedFiles.push(fileName);
@@ -728,7 +610,6 @@ const defaultConfig = {
   },
   output: {
     addWarningHeader: true,
-    mode: 'auto',
     generateIndex: true,
     fileExtension: '.ts',
     indexFileName: 'index.ts'
@@ -736,7 +617,7 @@ const defaultConfig = {
 };
 
 // Main generation function
-function generate(inputFile, outputDir, options = {}) {
+function generate(inputFile, outputDir) {
   validateInputFile(inputFile);
 
   const specContent = fs.readFileSync(inputFile, 'utf8');
@@ -749,7 +630,7 @@ function generate(inputFile, outputDir, options = {}) {
 
   parseSchemas(spec, config, interfaces, enums);
 
-  const generatedFiles = generateToFolder(interfaces, enums, outputDir, config, options.enumProtect);
+  const generatedFiles = generateToFolder(interfaces, enums, outputDir, config);
   return {
     success: true,
     outputDir,
@@ -763,14 +644,6 @@ if (require.main === module) {
   const args = process.argv.slice(2);
   const inputFile = args[0];
   const outputDir = args[1] || './types';
-
-  const options = {};
-  for (let i = 2; i < args.length; i++) {
-    if (args[i] === '--enum-protect' && args[i + 1]) {
-      options.enumProtect = args[i + 1];
-      i++;
-    }
-  }
 
   if (!inputFile) {
     console.error('Error: Input file is required');
@@ -786,7 +659,7 @@ if (require.main === module) {
       throw new Error(`Output path is a file, expected a directory: ${outputDir}`);
     }
 
-    const result = generate(inputFile, outputDir, options);
+    const result = generate(inputFile, outputDir);
     console.error(`Generated ${result.generatedFiles.length} files in ${result.outputDir}`);
     console.error(`  - ${result.interfaceCount} interfaces`);
     console.error(`  - ${result.enumCount} enums`);

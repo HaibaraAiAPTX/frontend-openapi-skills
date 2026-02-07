@@ -1,125 +1,96 @@
-# Configuration
+# 配置
 
-Customize TypeScript model generation via `config.json` in the skill directory.
+通过技能目录中的 `config.json` 自定义 TypeScript 模型生成。
 
-## File Location
+## 文件位置
 
 `skills/generate-ts-models/config.json`
 
-## Configuration Options
+## 配置选项
 
 ### typeMapping
 
-Maps OpenAPI types to TypeScript types.
+将 OpenAPI 类型映射到 TypeScript 类型。
 
 ```json
 {
   "typeMapping": {
     "string": "string",
     "integer": "number",
-    "number": "number",
+    "int": "number",
+    "float": "number",
     "boolean": "boolean",
     "array": "Array<{{type}}>",
-    "object": "Record<string, unknown>"
+    "object": "Record<string, any>"
   }
 }
 ```
 
-**Template variable:** `{{type}}` is replaced with the array's item type.
+**模板变量：** `{{type}}` 会被替换为数组项的类型。
 
 ### formatMapping
 
-Handles OpenAPI `format` strings to TypeScript types.
+处理 OpenAPI `format` 字符串到 TypeScript 类型的映射。
 
 ```json
 {
   "formatMapping": {
     "date": "Date",
     "date-time": "Date",
-    "binary": "Blob",
+    "uuid": "string",
+    "uri": "string",
+    "url": "string",
+    "email": "string",
+    "password": "string",
     "byte": "string",
-    "uuid": "string"
+    "binary": "Blob",
+    "int64": "number"
   }
 }
 ```
 
 ### naming
 
-TypeScript naming conventions.
+TypeScript 命名约定。
 
 ```json
 {
   "naming": {
     "interface": "PascalCase",
     "enum": "PascalCase",
-    "property": "camelCase"
+    "property": "preserve"
   }
 }
 ```
 
-| Property | Description | Default |
+| 属性 | 描述 | 默认值 |
 |----------|-------------|---------|
-| `interface` | Interface/enum name format | `PascalCase` |
-| `enum` | Enum name format | `PascalCase` |
-| `property` | Property name format | `camelCase` |
+| `interface` | 接口/枚举名称格式 | `PascalCase` |
+| `enum` | 枚举名称格式 | `PascalCase` |
+| `property` | 属性名称格式 | `preserve` |
+
+**`preserve` 模式说明：**
+- 保留原始属性名（不转换）
+- 如果属性名是有效的 TypeScript 标识符（非保留字），直接使用
+- 否则使用字符串字面量（如 `'user-name'`）
+
+支持的命名约定：`PascalCase`, `camelCase`, `preserve`
 
 ### output
 
-File generation options.
+文件生成选项。
 
-```json
-{
-  "output": {
-    "addWarningHeader": true,
-    "generateIndex": true,
-    "fileExtension": ".ts",
-    "outputDir": "./types"
-  }
-}
-```
-
-| Option | Description | Default |
+| 选项 | 描述 | 默认值 |
 |--------|-------------|---------|
-| `addWarningHeader` | Add `// Auto-generated` comment | `true` |
-| `generateIndex` | Create `index.ts` barrel file | `true` |
-| `fileExtension` | Output file extension | `.ts` |
+| `addWarningHeader` | 添加 `// Auto-generated` 注释 | `true` |
+| `generateIndex` | 创建 `index.ts` 桶文件 | `true` |
+| `fileExtension` | 输出文件扩展名 | `.ts` |
+| `indexFileName` | 桶文件名称 | `index.ts` |
 
-## Complete Example
+## 配置说明
 
-```json
-{
-  "typeMapping": {
-    "string": "string",
-    "integer": "number",
-    "number": "number",
-    "boolean": "boolean",
-    "array": "Array<{{type}}>"
-  },
-  "formatMapping": {
-    "date": "Date",
-    "date-time": "Date"
-  },
-  "naming": {
-    "interface": "PascalCase",
-    "enum": "PascalCase",
-    "property": "camelCase"
-  },
-  "output": {
-    "addWarningHeader": true,
-    "generateIndex": true,
-    "fileExtension": ".ts"
-  }
-}
-```
-
-## Overriding via CLI
-
-The skill uses sensible defaults. To override settings, modify `config.json` directly or pass options via the generate script.
+该技能使用合理的默认值。如需自定义类型映射、格式映射或命名约定，请直接编辑 `config.json` 文件。
 
 ```bash
-# Use default type mapping
-bash skills/generate-ts-models/scripts/generate.sh ./swagger.json ./src/types/
-
-# Type mapping is fixed in this version
-# For custom mapping, edit config.json
+node skills/generate-ts-models/scripts/generate.js ./swagger.json ./src/types/
 ```

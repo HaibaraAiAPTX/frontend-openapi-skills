@@ -1,76 +1,55 @@
-# Enum Protection
+# 枚举保护
 
-Preserve manually edited enum keys when regenerating TypeScript models.
+在重新生成 TypeScript 模型时自动保留已翻译的枚举键。
 
-## Overview
+## 概述
 
-When regenerating models from an updated OpenAPI spec, enum protection prevents manually edited keys from being overwritten.
+当从更新的 OpenAPI 规范重新生成模型时,枚举保护功能会自动检测并保留用户已翻译的枚举键,无需手动标记。
 
-## Protection Markers
+## 自动检测机制
 
-Files with protected keys include a JSDoc header:
+系统通过分析现有的枚举文件,自动检测哪些枚举键已被翻译。
 
-```typescript
-/**
- * Auto-generated from OpenAPI specification
- * @preserve-manual Success,Enabled
- * Do not edit manually
- */
-export enum UserStatus {
-  /** Preserved manual edit */
-  Success = 0,
-  /** Auto-generated */
-  Disabled = 1
-}
-```
+### 保留内容
 
-**@preserve-manual** lists comma-separated enum keys to protect.
+如果满足以下条件,枚举键被视为"已翻译"并被保留:
 
-## Protection Strategies
+1. **它不是自动生成的** - 键不匹配自动生成模式
+2. **它是有效的 PascalCase 标识符** - 键遵循 TypeScript 命名约定
 
-| Strategy | Behavior | Use Case |
-|----------|----------|----------|
-| `none` | No protection, always regenerate all keys | Initial generation, fresh projects |
-| `preserve-manual` | Preserve `@preserve-manual` keys | Ongoing development, iterative updates |
-| `always` | Always override everything | Force regeneration, ignore existing edits |
+### 自动生成的键模式
 
-### Strategy Details
+以下模式被视为自动生成,将**不会**被保留:
 
-**none (default):**
-```bash
-# Regenerates all enums fresh
-bash generate.sh swagger.json ./types --enum-protect none
-```
+- `EnumValue0`, `EnumValue1`, ... (用于字符串值)
+- `Enum0`, `Enum1`, ... (用于正数)
+- `EnumMinus1`, `EnumMinus2`, ... (用于负数)
+- `EnumSuccess`, `EnumHelloWorld` (从非标识符字符串转换的 PascalCase)
 
-**preserve-manual:**
-```bash
-# Preserves manually edited keys marked with @preserve-manual
-bash generate.sh swagger.json ./types --enum-protect preserve-manual
-```
+**已翻译键示例(将被保留):**
+- `Success`, `Active`, `Disabled`, `Pending`
+- `UserRole`, `OrderStatus`, `PaymentMethod`
 
-**always:**
-```bash
-# Overwrites everything, discards manual edits
-bash generate.sh swagger.json ./types --enum-protect always
-```
+**自动生成键示例(将被重新生成):**
+- `Enum0`, `Enum1`, `Enum2`
+- `EnumValueActive`, `EnumValueInactive`
 
-## How It Works
+## 工作原理
 
-1. Script reads existing enum files in output directory
-2. Extracts `@preserve-manual` markers from JSDoc headers
-3. Preserves original key name and value for protected entries
-4. Updates only non-protected keys
+1. 脚本读取输出目录中现有的枚举文件
+2. 分析每个枚举键以确定是否为自动生成
+3. 保留已翻译的键(非自动生成的有效 PascalCase)
+4. 仅使用 OpenAPI 规范中的值更新自动生成的键
 
-## Usage Example
+## 使用示例
 
-### Initial Generation
+### 初始生成
 
 ```bash
-# First generation - creates Enum0, Enum1, Enum2
-bash generate.sh swagger.json ./types
+node skills/generate-ts-models/scripts/generate.js swagger.json ./types
 ```
 
-Result:
+结果:
 ```typescript
 export enum UserStatus {
   Enum0 = 0,
@@ -79,81 +58,85 @@ export enum UserStatus {
 }
 ```
 
-### Manual Edit
+### 手动翻译
 
-You edit `UserStatus.ts`:
-
+你编辑 `UserStatus.ts`:
 ```typescript
 export enum UserStatus {
-  /** 成功状态 */
-  Success = 0,  // Changed from Enum0
-  Enum1 = 1,
-  Enum2 = 2
+  Success = 0,  // ← 从 Enum0 翻译
+  Active = 1,   // ← 从 Enum1 翻译
+  Disabled = 2  // ← 从 Enum2 翻译
 }
 ```
 
-Add protection marker:
-```typescript
-/**
- * Auto-generated from OpenAPI specification
- * @preserve-manual Success
- * Do not edit manually
- */
-export enum UserStatus {
-  /** 成功状态 */
-  Success = 0,
-  Enum1 = 1,
-  Enum2 = 2
-}
-```
-
-### Regeneration with Protection
+### 带自动检测的重新生成
 
 ```bash
-# Regenerates with protection
-bash generate.sh swagger.json ./types --enum-protect preserve-manual
+node skills/generate-ts-models/scripts/generate.js swagger.json ./types
 ```
 
-Result (Success preserved, Enum1/Enum2 regenerated):
+结果(已翻译的键自动保留):
 ```typescript
 export enum UserStatus {
-  Success = 0,  // Preserved!
-  Active = 1,   // Regenerated
-  Inactive = 2  // Regenerated
+  Success = 0,   // ← 已保留!
+  Active = 1,    // ← 已保留!
+  Disabled = 2,  // ← 已保留!
 }
 ```
 
-## File Format
-
-Protected files use this format:
-
+如果 OpenAPI 规范添加了新的枚举值,将使用自动生成的键添加:
 ```typescript
-/**
- * Auto-generated from OpenAPI specification
- * @preserve-manual Key1,Key2,Key3
- * Do not edit manually
- */
-
-/**
- * Enum description
- */
-export enum EnumName {
-  /** Key1 description */
-  Key1 = 0,
-  /** Key2 description */
-  Key2 = 1
+export enum UserStatus {
+  Success = 0,   // ← 已保留
+  Active = 1,    // ← 已保留
+  Disabled = 2,  // ← 已保留
+  Enum3 = 3      // ← 规范中的新值
 }
 ```
 
-## Supported Enums
+## 支持的枚举类型
 
-- **String enums:** `export enum Status { Active = "Active" }`
-- **Numeric enums:** `export enum Status { Active = 0 }`
-- **Const enums:** Not supported (removed at compile time)
+- **字符串枚举:** `export enum Status { Active = "Active" }`
+- **数字枚举:** `export enum Status { Active = 0 }`
+- **Const 枚举:** 不支持(在编译时移除)
 
-## Limitations
+## 限制
 
-1. **Key names only** - Values are always regenerated based on schema
-2. **Comma-separated** - Use commas, not spaces: `@preserve-manual Success,Enabled`
-3. **Case-sensitive** - `Success` != `success`
-4. **Existing files** - Protection only works on files that already exist
+1. **仅限键名** - 值始终根据规范重新生成
+2. **需要 PascalCase** - 只有有效的 PascalCase 标识符才被视为已翻译
+3. **现有文件** - 保护仅对已存在的文件有效
+4. **首次生成** - 首次生成时无保护(没有现有文件可分析)
+
+## 最佳实践
+
+1. **生成后立即翻译** - 在规范新鲜时编辑枚举键
+2. **使用有意义的 PascalCase** - 选择清晰、自文档化的名称
+3. **保持值与规范一致** - 不要更改枚举值,仅更改键
+4. **提交已翻译的枚举** - 在版本控制中跟踪翻译
+
+## 故障排除
+
+### 为什么我的键没有被保留?
+
+**问题:** 你编辑了枚举键,但它被重新生成了。
+
+**可能的原因:**
+1. 键匹配了自动生成模式(例如,你使用了 `Enum0`)
+2. 键不是有效的 PascalCase(例如,你使用了 `user-status`)
+3. 你是第一次重新生成(没有现有文件)
+
+**解决方案:** 使用不匹配自动生成模式的有效 PascalCase 标识符。
+
+### 如何保留特定的键?
+
+**解决方案:** 只需将其翻译为有意义的 PascalCase 名称。无需标记:
+```typescript
+export enum Status {
+  Success = 0,  // ← 自动保留
+  Enum1 = 1     // ← 将被重新生成
+}
+```
+
+### 我可以禁用保护吗?
+
+**解决方案:** 在重新生成之前删除现有的枚举文件,或手动将所有键设置为自动生成模式。

@@ -1,39 +1,14 @@
 ---
 name: generate-ts-models
-description: "Use when you have an OpenAPI/Swagger JSON specification and need TypeScript type definitions for schemas, enums, with automatic index.ts barrel file generation"
+description: "将 OpenAPI 3.x JSON 规范转换为 TypeScript 接口和枚举。支持自动类型导入、桶文件（index.ts）生成、枚举键翻译保留。使用场景：(1) 从 OpenAPI 规范生成初始类型定义 (2) 从更新的规范重新生成并保留手动修改 (3) 需要自定义类型映射或命名约定 (4) 规范包含组件间的类型引用。限制：仅支持 OpenAPI 3.x JSON 格式（必须 .json 扩展名，不支持 YAML/Swagger 2.0），输入文件最大 10MB，必须包含 components/schemas，仅支持文件夹模式（每 schema 一个文件）"
 ---
 
-# Generate TypeScript Models
+# 生成 TypeScript 模型
 
-Converts OpenAPI/Swagger schemas into TypeScript declarations (interfaces, enums, and index barrel file).
+## 核心模式
 
-## Overview
-
-Generates TypeScript interfaces and enums from OpenAPI/Swagger specifications with automatic barrel file organization. Supports both OpenAPI 3.x (`components/schemas`) and Swagger 2.0 (`definitions`).
-
-Core principle: Parse schemas → Apply type mappings → Generate one file per schema → Create barrel file
-
-## When to Use
-
-Use this skill when:
-
-- You have an OpenAPI or Swagger specification file
-- Need TypeScript type safety for API models
-- Want automatic barrel file (index.ts) generation
-- Generating initial types or regenerating from updated specs
-- Need custom type mappings or enum protection
-
-**Do NOT use when:**
-
-- Spec file is not JSON format → Use `download-swagger-file` skill first
-- Need single-file output → This skill only supports folder mode
-- Spec has no schemas → Verify spec contains `components/schemas` or `definitions`
-
-## Core Pattern
-
-**Before:**
+**输入**（OpenAPI 3.x JSON）：
 ```json
-// openapi.json
 {
   "components": {
     "schemas": {
@@ -49,7 +24,7 @@ Use this skill when:
 }
 ```
 
-**After:**
+**输出**（TypeScript 文件 + 桶文件）：
 ```typescript
 // types/User.ts
 export interface User {
@@ -61,79 +36,43 @@ export interface User {
 export * from './User';
 ```
 
-**Workflow:** Parse spec → Extract schemas → Apply mappings → Generate files → Create barrel
+支持类型引用自动导入、枚举键翻译保留。详见 [配置](references/config.md)、[枚举保护](references/enum-protection.md)。
 
-## Usage
+## 使用方法
 
 ```bash
-node skills/generate-ts-models/scripts/generate.js <spec-file> [output-dir] [options]
+node skills/generate-ts-models/scripts/generate.js <spec-file> [output-dir]
 ```
 
-**Arguments:**
-- `spec-file` - Path to OpenAPI JSON (required)
-- `output-dir` - Output directory (optional, defaults to `./types`)
-- `--enum-protect <strategy>` - See [Enum Protection](references/enum-protection.md)
+**参数：**
+- `spec-file` - OpenAPI 3.x JSON 文件路径（必需，必须使用 `.json` 扩展名）
+- `output-dir` - 输出目录（可选，默认为 `./types`）
 
-**Examples:**
-
+**示例：**
 ```bash
-# Default settings
+# 默认输出到 ./types
 node skills/generate-ts-models/scripts/generate.js ./swagger.json
 
-# Custom output directory
+# 自定义输出目录
 node skills/generate-ts-models/scripts/generate.js ./swagger.json ./src/types/
-
-# With enum protection
-node skills/generate-ts-models/scripts/generate.js ./swagger.json ./types --enum-protect preserve-manual
 ```
 
-## Output Structure
+**限制：**
+- 仅支持 OpenAPI 3.x JSON 格式（必须 .json 扩展名，不支持 YAML/Swagger 2.0）
+- 输入文件最大 10MB
+- 必须包含 `components/schemas`
 
-Generates one `.ts` file per schema plus an `index.ts` barrel file:
+## 输出结构
 
 ```
 ./types/
-├── User.ts
-├── UserStatus.ts
-└── index.ts
+├── User.ts          # 接口（自动导入引用类型）
+├── UserStatus.ts     # 枚举（支持键名翻译保留）
+└── index.ts         # 桶文件
 ```
 
-**Generated content:**
+## 相关文档
 
-| File | Type |
-|------|------|
-| `User.ts` | interface |
-| `UserStatus.ts` | enum |
-| `index.ts` | barrel file (auto-generated exports) |
-
-See [Configuration](references/config.md) for customization.
-
-## Enum Protection
-
-Preserve manually edited enum keys when regenerating. See [Enum Protection](references/enum-protection.md) for:
-- Protection strategies (`none`, `preserve-manual`, `always`)
-- @preserve-manual marker format
-- Workflow examples
-
-## Troubleshooting
-
-Common issues:
-- **INVALID_JSON** - Check spec file is valid JSON
-- **NO_SCHEMAS** - Verify spec has `components/schemas` or `definitions`
-- **PERMISSION_DENIED** - Check write permissions on output directory
-
-See [Error Codes](references/errors.md) for complete reference.
-
-## Common Mistakes
-
-| Mistake | Symptoms | Fix |
-|----------|-----------|-----|
-| Passing .ts file as output path | Error: `SINGLE_FILE_NOT_SUPPORTED` | Use directory path, not file path |
-| Expecting single-file output | All schemas in one .ts file | This skill generates one file per schema |
-| Not creating output directory | Error: `PERMISSION_DENIED` | Create directory first: `mkdir -p ./types` |
-| Forgetting barrel file import | Can't find types | Import from barrel: `import { User } from './types'` |
-
-## Present Results to User
-
-Generated TypeScript models to `./src/types/`:
-- 20 files (15 interfaces, 4 enums, 1 index.ts)
+- [配置](references/config.md) - 自定义类型映射、命名约定
+- [枚举保护](references/enum-protection.md) - 保留手动翻译的枚举键
+- [错误代码](references/errors.md) - 完整错误参考
