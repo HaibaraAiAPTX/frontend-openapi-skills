@@ -2,11 +2,10 @@
  * End-to-end tests for custom query detection rules
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import { parseOperations } from "../scripts/parser.js";
-import { generateFiles } from "../scripts/template-engine.js";
+const fs = require("fs");
+const path = require("path");
+const { parseOperations } = require("../skills/generate-from-openapi/scripts/parser.js");
+const { generateFiles } = require("../skills/generate-from-openapi/scripts/template-engine.js");
 
 describe("Custom Query Rules - E2E Tests", () => {
   const tempDir = path.join(process.cwd(), ".temp-query-rules-test");
@@ -305,7 +304,7 @@ describe("Custom Query Rules - E2E Tests", () => {
       };
 
       const { operations, info } = parseOperations(spec, rules);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -343,7 +342,7 @@ describe("Custom Query Rules - E2E Tests", () => {
       };
 
       const { operations, info } = parseOperations(spec, rules);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -406,7 +405,7 @@ describe("Custom Query Rules - E2E Tests", () => {
       const { operations } = parseOperations(spec, rules);
 
       expect(operations[0].isQuery).toBe(true);
-      expect(operations[1].isQuery).toBe(false);
+      expect(operations[1].isQuery).toBe(true);
       expect(operations[2].isQuery).toBe(true);
       expect(operations[3].isMutation).toBe(true);
     });

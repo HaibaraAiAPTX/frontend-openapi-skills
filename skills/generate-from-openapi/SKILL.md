@@ -1,13 +1,13 @@
 ---
 name: generate-from-openapi
-description: Generate TypeScript API clients and TanStack Query hooks from OpenAPI/Swagger specifications. Use when you need to: (1) Create type-safe API clients, (2) Generate React Query hooks, (3) Convert OpenAPI specs to TypeScript code
+description: "从 OpenAPI 3.x 规范生成 TypeScript API 客户端和 TanStack Query hooks。在以下情况下使用：（1）创建类型安全的 API 客户端，（2）生成 React Query hooks，（3）将 OpenAPI 规范转换为 TypeScript 代码"
 ---
 
 # 从 OpenAPI 生成 API 客户端
 
 ## 适用场景
 
-当你拥有 OpenAPI/Swagger 规范并且需要 TypeScript API 客户端或 React Query hooks 时使用。
+当你拥有 OpenAPI 3.x 规范并且需要 TypeScript API 客户端或 React Query hooks 时使用。
 
 ## 核心原则
 

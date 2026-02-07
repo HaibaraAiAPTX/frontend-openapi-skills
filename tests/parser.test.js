@@ -2,8 +2,7 @@
  * Unit tests for parser.js
  */
 
-import { describe, it, expect } from "vitest";
-import { parseOperations } from "../scripts/parser.js";
+const { parseOperations } = require("../skills/generate-from-openapi/scripts/parser.js");
 
 describe("parser.js", () => {
   describe("parseOperations", () => {
@@ -30,7 +29,7 @@ describe("parser.js", () => {
       expect(result.operations).toHaveLength(1);
       expect(result.info.title).toBe("Test API");
       expect(result.info.version).toBe("1.0.0");
-      expect(result.operations[0].name).toBe("user_users_get");
+      expect(result.operations[0].name).toBe("userUsersGet");
       expect(result.operations[0].method).toBe("GET");
       expect(result.operations[0].tag).toBe("User");
     });

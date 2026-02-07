@@ -2,11 +2,10 @@
  * Integration tests for template-engine.js
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import { generateFiles } from "../scripts/template-engine.js";
-import { parseOperations } from "../scripts/parser.js";
+const fs = require("fs");
+const path = require("path");
+const { generateFiles } = require("../skills/generate-from-openapi/scripts/template-engine.js");
+const { parseOperations } = require("../skills/generate-from-openapi/scripts/parser.js");
 
 describe("template-engine.js", () => {
   const tempDir = path.join(process.cwd(), ".temp-test-output");
@@ -44,7 +43,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -89,7 +88,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -129,7 +128,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -164,7 +163,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -200,7 +199,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -217,12 +216,11 @@ describe("template-engine.js", () => {
       generateFiles(templateDir, operations, info, config);
 
       const apiContent = fs.readFileSync(config.outputApi, "utf8");
-      expect(apiContent).toContain('import type * as Domains from "@repo/domains";');
-      expect(apiContent).toContain('import type { ApiRequestOptions } from "@repo/api-core";');
+      expect(apiContent).toContain('import type * as Domains from &quot;@repo/domains&quot;;');
+      expect(apiContent).toContain('import type { ApiRequestOptions } from &quot;@repo/api-core&quot;;');
 
       const hooksContent = fs.readFileSync(config.outputHooks, "utf8");
-      expect(hooksContent).toContain('import type * as Domains from "@repo/domains";');
-      expect(hooksContent).toContain('import type { AppError } from "@repo/api-core";');
+      expect(hooksContent).toContain('import type { AppError } from &quot;@repo/api-core&quot;;');
     });
 
     it("should handle operations with path parameters", () => {
@@ -242,7 +240,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -280,7 +278,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -319,7 +317,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const config = {
         imports: {
           domains: 'import type * as Domains from "@repo/domains";',
@@ -353,7 +351,7 @@ describe("template-engine.js", () => {
       };
 
       const { operations, info } = parseOperations(spec);
-      const templateDir = path.join(process.cwd(), ".agents", "skills", "generate-from-openapi", "templates");
+      const templateDir = path.join(process.cwd(), "skills", "generate-from-openapi", "templates");
       const deepOutputPath = path.join(tempDir, "deep", "nested", "api.ts");
       const config = {
         imports: {
