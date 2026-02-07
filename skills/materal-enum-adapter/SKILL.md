@@ -1,217 +1,85 @@
 ---
 name: materal-enum-adapter
-description: "Fetches Materal Framework enum data from API for TypeScript enum generation. Use when: (1) Working with Materal Framework OpenAPI specs, (2) Need real enum values from API (not schema-only), (3) Generating TypeScript enums with Chinese-to-English translations via AI."
+description: "从 Materal API 获取枚举值并生成 TypeScript 枚举文件。适用于使用 Materal Framework OpenAPI 规范的场景，支持中英双语翻译和 AI 辅助命名。"
 ---
 
-# Materal Framework Enum Adapter
+# Materal Framework 枚举适配器
 
-Detects Materal Framework's enum endpoints and fetches real enum data from the API for efficient enum generation.
+检测 OpenAPI 规范中的枚举端点，从 Materal API 获取真实枚举值，生成 TypeScript 枚举文件。
 
-## How It Works
+## 工作原理
 
-Two-command workflow for fast, batch-style enum generation:
+**fetch** - 从 API 获取枚举数据
+1. 解析 OpenAPI 规范中的 `Enums/GetAll*` 端点
+2. 提取枚举名称和描述
+3. 从 Materal API 获取 `{Key, Value}` 对
+4. 输出 JSON 到文件
 
-**fetch** - Get enum data from API
-1. Parse OpenAPI spec for `Enums/GetAll*` endpoints (auto-detects namespace)
-2. Extract enum names from endpoint paths
-3. Fetch `{Key, Value}` pairs from Materal API (Chinese values)
-4. Output JSON for AI batch translation
+**generate** - 生成 TypeScript 文件
+1. 读取 AI 翻译后的 JSON 文件（需包含 `englishName` 字段）
+2. 验证数据结构
+3. 生成 TypeScript 枚举文件（每个枚举一个文件）
+4. 自动删除翻译用的 JSON 文件
 
-**generate** - Generate TypeScript files
-1. Read AI-translated enum data (with English names)
-2. Validate data structure
-3. Generate TypeScript enum files (one per enum, overwrites existing)
-4. **Note**: Does NOT generate `index.ts` - already exists from `generate-ts-models`
+## 使用方法
 
-## Namespace Detection
-
-Auto-detects namespace prefix from first enum endpoint:
-
-| Endpoint Pattern | Detected Namespace | API URL Example |
-|-----------------|-------------------|-----------------|
-| `/MainAPI/Enums/GetAllRole` | `/MainAPI` | `{base-url}/MainAPI/Enums/GetAllRole` |
-| `/GatewayAPI/Enums/GetAllStatus` | `/GatewayAPI` | `{base-url}/GatewayAPI/Enums/GetAllStatus` |
-| `/Enums/GetAllType` | `(empty)` | `{base-url}/Enums/GetAllType` |
-
-## Usage
-
-### Fetch enum data from API
+### 从 API 获取枚举数据
 
 ```bash
-node skills/materal-enum-adapter/scripts/adapter.js <spec-file> --base-url <url> fetch
+node skills/materal-enum-adapter/scripts/adapter.js <spec-file> --base-url <url> --output <file> fetch
 ```
 
-**Arguments:**
-- `spec-file` - Path to OpenAPI JSON
-- `--base-url` - Materal API base URL
+**参数：**
+- `spec-file` - OpenAPI JSON 文件路径
+- `--base-url` - Materal API 基础 URL（必需）
+- `--output <file>` - 输出 JSON 文件路径（必需）
 
-**Example:**
+**示例：**
 ```bash
-node skills/materal-enum-adapter/scripts/adapter.js openapi.json --base-url http://localhost:5000 fetch
+node skills/materal-enum-adapter/scripts/adapter.js openapi.json --base-url http://localhost:5000 --output enums.json fetch
 ```
 
-### Generate TypeScript files
-
-```bash
-node skills/materal-enum-adapter/scripts/adapter.js <translation-file> [--output-dir <dir>] generate
-```
-
-**Arguments:**
-- `translation-file` - Path to AI-translated JSON file
-- `--output-dir <dir>` - Output directory (default: `./src/enums`)
-
-**Example:**
-```bash
-node skills/materal-enum-adapter/scripts/adapter.js translations.json --output-dir ./src/types generate
-```
-
-## Output Format
-
-### fetch output (for AI translation)
-
-```json
-{
-  "success": true,
-  "detected": true,
-  "enums": ["Role", "Status"],
-  "enumsSkipped": 0,
-  "enumData": [
-    {
-      "name": "Role",
-      "description": "角色",
-      "values": [
-        {"key": 0, "value": "管理员"},
-        {"key": 1, "value": "用户"}
-      ]
-    }
-  ]
-}
-```
-
-**Fields:**
-- `success` - Operation completed successfully
-- `detected` - Materal Framework enum controller found
-- `enums` - Successfully fetched enum names
-- `enumsSkipped` - Number of failed fetches
-- `enumData[].name` - Enum name (PascalCase)
-- `enumData[].description` - Enum description
-- `enumData[].values[].key` - Enum key (number or string)
-- `enumData[].values[].value` - Original Chinese value
-
-### generate input (AI creates this)
-
-Transform fetch output by:
-1. Keeping `description` field from fetch output
-2. Replacing `value` with `englishName`
-3. Adding `chineseName` for per-value comments
-
-```json
-{
-  "enumData": [
-    {
-      "name": "Role",
-      "description": "角色",
-      "values": [
-        {"key": 0, "englishName": "Administrator", "chineseName": "管理员", "originalValue": "管理员"},
-        {"key": 1, "englishName": "User", "chineseName": "用户", "originalValue": "用户"}
-      ]
-    }
-  ]
-}
-```
-
-**Required fields:**
-- `enumData[].name` - Enum name (PascalCase)
-- `enumData[].description` - Enum description (from fetch output, generates file-level comment)
-- `enumData[].values[].key` - Enum key (number or string)
-- `enumData[].values[].englishName` - English name (PascalCase, becomes enum member name)
-- `enumData[].values[].chineseName` - Chinese name (generates per-value comment, optional but recommended)
-- `enumData[].values[].originalValue` - Original Chinese value (optional)
-
-### generate output (summary)
-
-```json
-{
-  "success": true,
-  "generated": 2,
-  "enums": ["Role", "Status"],
-  "outputDir": "./src/enums"
-}
-```
-
-**Generated files:**
-```
-src/enums/
-├── Role.ts
-└── Status.ts
-```
-
-**Role.ts:**
-```typescript
-/**
- * Auto-generated from OpenAPI specification
- * Do not edit manually
- */
-
-/**
- * 角色
- */
-export enum Role {
-  /** 管理员 */
-  Administrator = 0,
-  /** 用户 */
-  User = 1
-}
-```
-
-**Note**: `index.ts` is NOT generated - it already exists from `generate-ts-models` workflow. This skill only overwrites individual enum files with translated values.
-
-**Important**: Ensure `--output-dir` matches the directory used by `generate-ts-models` (default: `./types`).
-
-## Workflow Example
+### 生成 TypeScript 文件
 
 ```bash
-# Step 1: Generate base models (includes enums + index.ts)
+node skills/materal-enum-adapter/scripts/adapter.js <translation-file> --output-dir <dir> generate
+```
+
+**参数：**
+- `translation-file` - AI 翻译后的 JSON 文件路径
+- `--output-dir <dir>` - 输出目录（必需）
+
+**示例：**
+```bash
+node skills/materal-enum-adapter/scripts/adapter.js enums.json --output-dir ./src/types generate
+```
+
+## 完整文档
+
+- **输出格式**: 查看 [OUTPUT_FORMATS.md](references/output-formats.md) 了解 fetch 输出和 generate 输入的详细格式
+- **命名空间检测**: 查看 [NAMESPACE.md](references/namespace.md) 了解自动检测机制
+- **错误处理**: 查看 [ERRORS.md](references/errors.md) 了解常见错误和解决方案
+
+## 工作流示例
+
+完整工作流示例：
+
+```bash
+# 步骤 1：生成基础模型（包括枚举 + index.ts）
 node skills/generate-ts-models/scripts/generate.js openapi.json ./src/types
 
-# Step 2: Fetch real enum values from API
-node skills/materal-enum-adapter/scripts/adapter.js openapi.json --base-url http://localhost:5000 fetch > raw.json
+# 步骤 2：从 API 获取真实枚举值
+node skills/materal-enum-adapter/scripts/adapter.js openapi.json --base-url http://localhost:5000 --output enums.json fetch
 
- # Step 3: AI translates values (batch - single API call)
- # Creates translations.json with englishName, description, and chineseName fields
- # IMPORTANT: Keep the `description` field from fetch output and add `chineseName` to each value
+# 步骤 3：AI 在 enums.json 中添加 englishName 字段
+# 将每个值的 "originalValue" 翻译为 "englishName"
 
-# Step 4: Generate translated enum files (overwrites only enum files)
-node skills/materal-enum-adapter/scripts/adapter.js translations.json --output-dir ./src/types generate
+# 步骤 4：生成翻译后的枚举文件
+node skills/materal-enum-adapter/scripts/adapter.js enums.json --output-dir ./src/types generate
 ```
 
-**Final output:**
-```
-src/types/
-├── User.ts              # from generate-ts-models
-├── Role.ts              # from generate-ts-models, overwritten by materal-enum-adapter
-├── index.ts             # from generate-ts-models (not regenerated)
-```
+## 要求
 
-**Performance**: 10-50x faster than AI generating files individually (single translation batch + instant file generation).
-
-## Requirements
-
-- OpenAPI spec with `Enums/GetAll*` endpoints (any namespace prefix)
-- Materal API running at `--base-url`
-- Network access to API
-
-## Error Handling
-
-### Common errors
-
-| Command | Error | Cause | Action |
-|---------|--------|--------|--------|
-| fetch | `Cannot read spec file` | Invalid JSON or wrong path | Check file path and JSON validity |
-| fetch | `No Materal Framework Enums controller detected` | No enum endpoints in spec | Verify spec format |
-| fetch | `Failed to fetch Role enum after 3 retries` | API unreachable | Check API availability and network |
-| generate | `Failed to read or parse translation file` | Invalid JSON | Check file path and JSON validity |
-| generate | `Invalid translation data: missing or invalid enumData array` | Missing enumData | Verify JSON structure |
-| generate | `Invalid value in Role: missing key or englishName` | Missing required fields | Check all values have key and englishName |
-
-**Error codes**: All errors exit with code 1.
+- 包含 `Enums/GetAll*` 端点的 OpenAPI 规范
+- Materal API 在 `--base-url` 运行
+- 网络可访问 API
