@@ -5,7 +5,7 @@
 **插件信息：**
 - **名称**：`frontend-openapi-skills`
 - **所有者**：HaibaraaiAPTX
-- **技能**：download-swagger-file, generate-ts-models
+- **技能**：download-openapi, generate-models, generate-artifacts, adapt-materal-enums
 
 ## 项目结构
 

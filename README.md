@@ -5,13 +5,13 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)
 
-这是一个 Claude Code 技能集，用于从 OpenAPI 3.x 规范生成 TypeScript 模型（接口/枚举）。
+这是一个 Claude Code 技能集，基于底层 `aptx-ft` 代码生成器，从 OpenAPI 3.x 规范生成前端模型与请求代码。
 
 从 OpenAPI 定义自动生成类型安全的模型代码 — 消除手动类型定义，减少样板代码。
 
 ## 特性
 
-- 🚀 **自动化 TypeScript 生成** — 将 OpenAPI 模式转换为 TypeScript 接口和类型
+- 🚀 **自动化 TypeScript 生成** — 生成模型（interface/enum）与请求框架代码
 - 📥 **远程规范下载** — 从任何 URL 获取 OpenAPI JSON 规范
 - 🎯 **类型安全** — 生成完全类型化的模型
 - ⚙️ **可配置** — 自定义类型映射、命名约定和输出格式
@@ -19,19 +19,58 @@
 
 ## 可用技能
 
-### [download-swagger-file](./skills/download-swagger-file)
+### [download-openapi](./skills/download-openapi)
 
 从远程 URL 下载 OpenAPI 3.x JSON 规范文件。
 
-### [generate-ts-models](./skills/generate-ts-models)
+### [generate-models](./skills/generate-models)
 
-从 OpenAPI 3.x JSON 规范生成 TypeScript 类型声明（接口、枚举）：
+从 OpenAPI 3.x 规范生成 TypeScript 模型（接口、枚举）：
 
-- 每个模型一个文件，具有自动类型导入和用于便捷导航的 `index.ts` 桶文件
+- 基于底层 `aptx-ft model:gen`，保持通用、纯净
 
-### [materal-enum-adapter](./skills/materal-enum-adapter)
+### [generate-artifacts](./skills/generate-artifacts)
 
-检测 Materal Framework 枚举端点，从 API 获取真实的枚举值，并输出 JSON 以供 AI 辅助枚举翻译。
+从 OpenAPI 3.x 规范生成通用前端产物：
+
+- 模型（`model:gen`）
+- 请求框架客户端（`terminal:codegen`，如 `axios-ts` / `react-query` / `vue-query`）
+
+### [adapt-materal-enums](./skills/adapt-materal-enums)（专用）
+
+仅用于 Materal 框架：
+
+- 从 Materal 接口拉取枚举键值对
+- 经过 LLM 翻译 `suggested_name`
+- 再调用底层框架应用 patch 生成最终模型
+
+## 架构边界
+
+1. 通用能力：`generate-artifacts` / `generate-models`（所有前端项目可用）
+2. 特化能力：`adapt-materal-enums`（仅 Materal，必须专用触发）
+3. 核心流程保持纯净，不在通用 skill 注入业务框架逻辑
+
+## 使用前要求
+
+在使用这些 skill 的目标前端项目中安装 `aptx` 相关包，并保证命令 `aptx-ft` 可用。
+
+安装命令（任选其一）：
+
+```bash
+pnpm add -D @aptx/frontend-tk-cli @aptx/frontend-tk-types
+npm install -D @aptx/frontend-tk-cli @aptx/frontend-tk-types
+yarn add -D @aptx/frontend-tk-cli @aptx/frontend-tk-types
+```
+
+项目代码中请使用包名引用，例如：
+
+```ts
+import type { APTXFtConfig } from "@aptx/frontend-tk-types";
+```
+
+不要在项目中引用仓库绝对路径（如 `F:/...` 或 `/mnt/...`）。
+
+统一使用包命令（`pnpm exec aptx-ft ...` / `npx aptx-ft ...`）。
 
 ## 安装
 ```bash
@@ -82,7 +121,7 @@ export interface User {
 }
 ```
 
-有关详细的配置选项和高级用法，请参阅[技能文档](./skills/generate-ts-models/SKILL.md)。
+有关详细的配置选项和高级用法，请参阅[技能文档](./skills/generate-models/SKILL.md)。
 
 ## 支持的 OpenAPI 功能
 
@@ -112,9 +151,8 @@ export interface User {
 1. 阅读 [AGENTS.md](./AGENTS.md) 文档以了解结构指南
 2. 在 `skills/` 中创建新的技能目录
 3. 添加带有适当前言的 `SKILL.md` 文件
-4. 在 `scripts/` 目录中创建可执行脚本
-5. 使用各种 OpenAPI 规范进行彻底测试
-6. 提交拉取请求
+4. 使用各种 OpenAPI 规范进行彻底测试
+5. 提交拉取请求
 
 ## 开发
 
@@ -123,11 +161,9 @@ export interface User {
 git clone https://github.com/HaibaraaiAPTX/frontend-openapi-skills.git
 cd frontend-openapi-skills
 
-# 本地测试技能
-bash skills/download-swagger-file/scripts/download.sh <url>
-
-# 生成 TypeScript 模型（单文件模式）
-bash skills/generate-ts-models/scripts/generate.sh <spec-file> ./src/types/
+# 本地测试（直接使用 aptx 包命令）
+pnpm exec aptx-ft input download --url <url> --output ./openapi.json
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/types --style module
 
 # 将技能安装到 Claude Code 进行测试
 cp -r skills/* ~/.claude/skills/
