@@ -46,25 +46,41 @@ pnpm exec aptx-ft -i ./openapi.json model gen --output ./packages/models/src --s
 ## 执行步骤
 
 1. 准备输入（本地文件或 URL）。
-2. 根据项目类型给出建议参数。
-3. 向用户确认最终命令参数后再执行。
+2. 询问用户关键参数并确认：
+   - **输出目录**：推荐 `./src/models`（单项目）或 `./packages/models/src`（Monorepo）
+   - **生成风格**（必问）：
+     - `module`（默认）：生成 ES Module 格式，每个类型独立 export，适合现代前端项目
+     - `declaration`：生成单一声明文件，适合需要全局类型声明或兼容旧项目的场景
+   - **选择性生成**（可选）：如只需部分模型，使用 `--name` 指定（可多次使用）
+3. 向用户展示完整命令并确认后执行。
 4. 执行命令并返回生成结果。
 
 ```bash
-pnpm exec aptx-ft -i <spec-file-or-url> model gen --output <output-dir> --style module
+pnpm exec aptx-ft -i <spec-file-or-url> model gen --output <output-dir> --style <module|declaration>
+```
+
+> 注意：`--style` 默认值为 `module`，如需 `declaration` 风格需显式指定。
+
+示例：
+
+```bash
+# 使用默认 module 风格
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models
+
+# 显式指定 module 风格
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models --style module
+
+# 使用 declaration 风格（单一声明文件）
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models --style declaration
+
+# 选择性生成特定模型
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models --name User --name Role
 ```
 
 可选（未使用 pnpm 时）：
 
 ```bash
-npx aptx-ft -i <spec-file-or-url> model gen --output <output-dir> --style module
-```
-
-示例：
-
-```bash
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models --style module
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models --style module --name User --name Role
+npx aptx-ft -i ./openapi.json model gen --output ./generated/models --style module
 ```
 
 ## 输出

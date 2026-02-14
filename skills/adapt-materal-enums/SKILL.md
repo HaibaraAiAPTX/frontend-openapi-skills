@@ -49,13 +49,26 @@ npx aptx-ft -i <spec-file> materal enum-patch --base-url <base-url> --output ./t
 npx aptx-ft -i <spec-file> model enum-apply --patch ./tmp/enum-patch.translated.json --output ./generated/models --style module --conflict-policy patch-first
 ```
 
+## 高级参数
+
+`materal:enum-patch` 命令支持以下可选参数：
+
+- `--max-retries <n>`：网络请求失败时的最大重试次数，默认值 3
+- `--timeout-ms <ms>`：单次请求的超时时间（毫秒），默认值 10000（10秒）
+
+示例（自定义超时和重试）：
+
+```bash
+pnpm exec aptx-ft -i <spec-file> materal enum-patch --base-url <base-url> --output ./tmp/enum-patch.json --naming-strategy none --max-retries 5 --timeout-ms 30000
+```
+
 ## 输出
 
 - `enum-patch.json`：来自接口的枚举补丁，成员字段为 `value` / `suggested_name` / `comment`（Materal 默认映射：`Key -> value`，`Value -> comment`）。
 - `enum-patch.translated.json`：LLM 回填后的补丁。
 - 最终模型目录：包含适配后的 enum 声明。
 
-生产环境要求：apply 成功后必须清理上述两个中间文件，仅保留最终模型输出。
+apply 成功后必须清理上述两个中间文件，仅保留最终模型输出。
 
 ## 边界
 
