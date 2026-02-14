@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adapt Materal Enums"
+  short_description: "Fetch enum patch, name values, and apply model enum updates"
+  default_prompt: "Use $adapt-materal-enums to fetch enum patch data, fill suggested_name, and apply enum changes to generated models."

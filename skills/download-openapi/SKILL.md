@@ -12,7 +12,7 @@ description: "Download remote OpenAPI JSON to local file via aptx-ft. Use when u
 在目标项目安装 aptx 包，并确保可执行 `aptx-ft`：
 
 ```bash
-pnpm add -D @aptx/frontend-tk-cli @aptx/frontend-tk-types
+pnpm add -D @aptx/frontend-tk-cli
 ```
 
 ## 执行步骤

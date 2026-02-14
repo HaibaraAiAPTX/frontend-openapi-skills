@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate TS Models"
+  short_description: "Generate TypeScript interfaces and enums from OpenAPI schemas"
+  default_prompt: "Use $generate-models to generate TypeScript model files from OpenAPI schemas with module style output."
