@@ -17,7 +17,7 @@ frontend-openapi-skills/
 ├── skills/
 │   {skill-name}/           # kebab-case 目录
 │   │   ├── SKILL.md       # 技能定义（必需）
-│   │   ├── scripts/       # 可执行脚本（必需）
+│   │   ├── scripts/       # 可执行脚本（可选）
 │   │   │   ├── *.sh       # Bash 包装器
 │   │   │   └── *.js       # JS 实现
 │   │   └── config.json    # 可选配置
@@ -28,13 +28,13 @@ frontend-openapi-skills/
 
 ## 创建新技能
 
-### 1. 目录结构
+### 1. 目录结构（可选）
 
 ```bash
 cd skills
 mkdir {skill-name}
-cd {skill-name}
-mkdir scripts
+# scripts 目录是可选的，如需可添加
+# mkdir scripts
 ```
 
 ### 2. 技能定义
@@ -80,7 +80,9 @@ bash /mnt/skills/user/{skill-name}/scripts/{script}.sh [args]
 {常见问题和解决方案}
 ```
 
-### 3. 脚本
+### 3. 脚本（可选）
+
+如需脚本支持，可添加 `scripts/` 目录。技能也可以直接使用底层命令（不包含本地脚本包装），此时不需要 `scripts/` 目录。
 
 **命名约定：**
 - 目录：`kebab-case`
@@ -176,7 +178,7 @@ const config = JSON.parse(fs.readFileSync(
 **保持 SKILL.md 在 500 行以下** —— 启动时只加载技能名称/描述。相关时才加载完整的 SKILL.md。
 
 - 编写具体的描述，帮助代理准确了解何时激活技能
-- 优先使用脚本而非内联代码（节省上下文）
+- 优先使用脚本而非内联代码（节省上下文），如使用脚本
 - 仅在需要时引用支持文件
 
 ## 版本管理
@@ -209,9 +211,7 @@ cp -r skills/{skill-name} ~/.claude/skills/
 **技能未显示：**
 - 验证 SKILL.md 前言是有效的 YAML
 - 检查技能目录结构是否正确
-- 确保 scripts 目录存在且至少有一个可执行脚本
-
-**脚本失败：**
+**脚本失败（如使用脚本）：**
 - 验证 shebang（`#!/bin/bash` 或 `#!/usr/bin/env node`）
 - 检查文件权限（脚本应该是可执行的）
 - 确保依赖项（Node.js、curl 等）可用
