@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate Barrel Files"
+  short_description: "Generate barrel index.ts files for existing TypeScript files"
+  default_prompt: "Use $generate-barrels to generate barrel index.ts files for existing TypeScript files in a directory."
