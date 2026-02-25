@@ -19,12 +19,44 @@ pnpm add -D @aptx/frontend-tk-cli
 
 当前项目使用空格分隔命令：`aptx-ft <namespace> <command>`。
 
-- `aptx functions`：生成函数式请求封装。
-- `aptx react-query`：生成 React Query hooks。
-- `aptx vue-query`：生成 Vue Query composables。
 - `model gen`：生成模型层。
+- `aptx functions`：生成端点定义（`spec/`）+ 函数式请求封装（`functions/`）。
+- `aptx react-query`：生成 React Query hooks（**依赖 `spec/`，需先运行 `aptx functions`**）。
+- `aptx vue-query`：生成 Vue Query composables（**依赖 `spec/`，需先运行 `aptx functions`**）。
+
+**重要**：`react-query` 和 `vue-query` 渲染器不会生成 `spec/` 端点定义，它们只是引用 `functions` 渲染器生成的 spec 文件。因此使用 Query 渲染器前必须先运行 `aptx functions`。
 
 先执行 `pnpm exec aptx-ft --help` 确认可用命令，不假设历史命令或未注册渲染器仍可用。
+
+## 参数路径说明
+
+以下参数路径均相对于**运行命令时的工作目录**（即项目根目录），而非相对于输出目录。
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `-i` | OpenAPI 文件路径 | `./openapi.json` |
+| `-o` | 输出目录 | `./src/api` |
+| `--model-path` | 模型目录（当 `--model-mode relative` 时） | `./src/domains` |
+
+假设项目结构：
+
+```
+project/
+├── openapi.json
+└── src/
+    ├── domains/    # 模型目录
+    └── api/        # API 输出目录
+```
+
+在项目根目录运行：
+
+```bash
+# model-path 相对于工作目录，而非相对于 ./src/api
+pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./src/api \
+  --model-mode relative --model-path ./src/domains
+```
+
+---
 
 ## 项目类型参数建议（执行前必须确认）
 
@@ -118,12 +150,15 @@ pnpm exec aptx-ft aptx react-query -i openapi.json -o ./src/api \
 
 ```bash
 # 1. 安装依赖
-pnpm add @aptx/api-client @aptx/react-query
+pnpm add @aptx/api-client @aptx/api-query-react
 
 # 2. 生成模型
 pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style module
 
-# 3. 生成 React Query Hooks
+# 3. 生成端点定义（spec/）和函数封装（functions/）
+pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./src/api
+
+# 4. 生成 React Query Hooks（依赖 spec/）
 pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./src/api
 ```
 
@@ -131,31 +166,56 @@ pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./src/api
 
 ```bash
 # 1. 安装依赖
-pnpm add @aptx/api-client @aptx/vue-query
+pnpm add @aptx/api-client @aptx/api-query-vue
 
 # 2. 生成模型
 pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style module
 
-# 3. 生成 Vue Query Composables
+# 3. 生成端点定义（spec/）和函数封装（functions/）
+pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./src/api
+
+# 4. 生成 Vue Query Composables（依赖 spec/）
 pnpm exec aptx-ft aptx vue-query -i ./openapi.json -o ./src/api
 ```
 
 ## 输出结构
 
-### @aptx React Query 输出
+### aptx functions 输出
 
 ```
 src/api/
 ├── spec/
-│   └── namespace/       # 端点定义（buildXXXSpec）
-├── react-query/
-│   ├── namespace/
-│   │   ├── xxx.query.ts   # Query Hook
-│   │   └── xxx.mutation.ts # Mutation Hook
-│   └── ...
+│   └── namespace/
+│       └── xxx.ts           # 端点定义（buildXXXSpec）
 └── functions/
     └── namespace/
-        └── xxx.ts       # 函数式调用
+        └── xxx.ts           # 函数式调用
+```
+
+### aptx react-query 输出（需先运行 aptx functions）
+
+```
+src/api/
+├── spec/                    # 由 aptx functions 生成
+│   └── namespace/
+│       └── xxx.ts
+└── react-query/
+    └── namespace/
+        ├── xxx.query.ts     # Query Hook
+        └── xxx.mutation.ts  # Mutation Hook
+```
+
+### aptx vue-query 输出（需先运行 aptx functions）
+
+```
+src/api/
+├── spec/                    # 由 aptx functions 生成
+│   └── namespace/
+│       └── xxx.ts
+└── vue-query/
+    └── namespace/
+        ├── xxx.query.ts     # Query Composable
+        └── xxx.mutation.ts  # Mutation Composable
 ```
 
 ## 边界
