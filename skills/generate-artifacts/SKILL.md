@@ -7,6 +7,17 @@ description: "Generate frontend artifacts from OpenAPI via aptx-ft, including mo
 
 Generate models and request layer code from OpenAPI via aptx-ft CLI.
 
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [Command Overview](#command-overview)
+- [Parameter Reference](#parameter-reference)
+- [Discovery Phase](#discovery-phase)
+- [Workflow](#workflow)
+- [Output Structure](#output-structure)
+- [Framework-Specific Guides](#framework-specific-guides)
+- [Boundaries](#boundaries)
+
 ## Prerequisites
 
 ```bash
@@ -22,70 +33,66 @@ pnpm add -D @aptx/frontend-tk-cli
 | `aptx react-query` | Generate React Query hooks |
 | `aptx vue-query` | Generate Vue Query composables |
 
-**Important**: `react-query` and `vue-query` depend on `spec/` from `aptx functions`. Run functions first.
+> **⚠️ Dependency**: `react-query` and `vue-query` require `spec/` from `aptx functions`. Run functions first.
 
 ## Parameter Reference
 
 All paths are relative to **working directory** (project root).
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `-i` | OpenAPI file path | `./openapi.json` |
-| `-o` | Output directory | `./src/api` |
-| `--model-mode` | Model import mode | `relative` / `package` |
-| `--model-path` | Model directory/package | `./src/models` / `@org/models` |
-| `--client-mode` | Client import mode | `global` / `local` / `package` |
-| `--client-package` | Custom client package | `@org/api-client` |
+| Parameter | Required | Description |
+|-----------|:--------:|-------------|
+| `-i` | ✅ | OpenAPI file path (e.g., `./openapi.json`) |
+| `-o` | ✅ | Output directory (e.g., `./src/api`) |
+| `--model-mode` | ✅ | `relative` (same project) or `package` (monorepo) |
+| `--model-path` | ✅ | Path or package name for model imports |
+| `--client-mode` | ❌ | `global` (default) / `local` / `package` |
+| `--client-package` | ❌ | Custom client package name |
+
+### Model Source Decision
+
+```
+Is models directory inside the same package where API code is generated?
+├── YES → --model-mode relative --model-path ./src/models
+└── NO  → --model-mode package --model-path @org/models (from package.json "name")
+```
+
+### Client Mode Decision
+
+```
+Which HTTP client will the generated code use?
+├── Default @aptx/api-client → omit or --client-mode global
+├── Custom client in this project → --client-mode local
+└── Custom client from npm package → --client-mode package --client-package @org/api-client
+```
+
+> **⚠️ All `aptx` commands require `--model-mode` and `--model-path`.** Without these, generated code will have broken imports.
 
 ## Discovery Phase - MANDATORY FIRST STEP
 
-**Before executing any generation command, you MUST discover the actual project configuration.**
+**Before executing any generation command, discover the actual project configuration.**
 
 ### For Monorepo Projects
 
-1. **Find packages directory:**
-   ```bash
-   ls -d packages/*/
-   ```
+```bash
+# 1. Find packages
+ls -d packages/*/
 
-2. **Identify model package and get its name:**
-   ```bash
-   # Find package that likely contains models (domains, models, types, shared, etc.)
-   cat packages/domains/package.json 2>/dev/null || cat packages/models/package.json 2>/dev/null
-   ```
-   Extract the `"name"` field - this is your `--model-path` value.
+# 2. Get model package name (use THIS for --model-path)
+cat packages/domains/package.json  # Extract "name" field
 
-3. **Identify API package and verify dependencies:**
-   ```bash
-   cat packages/api/package.json 2>/dev/null
-   ```
-   Check `dependencies` for the model package reference.
+# 3. Verify API package dependencies
+cat packages/api/package.json
+```
 
 ### Critical Rules
 
-| ❌ NEVER Do This | ✅ ALWAYS Do This |
-|------------------|-------------------|
-| Guess package name from project directory | Read `package.json` to get actual `"name"` |
-| Assume `@project-name/models` | Use the exact value from `"name"` field |
+| ❌ NEVER | ✅ ALWAYS |
+|----------|-----------|
+| Guess package name from directory | Read `package.json` `"name"` field |
+| Assume `@project-name/models` | Use exact value from `"name"` |
 | Infer from `packages/domains/` path | Package name ≠ directory name |
 
-### Example Discovery
-
-```bash
-# User says: "generate to packages/domains and packages/api"
-
-# Step 1: Read actual package names
-$ cat packages/domains/package.json
-{ "name": "@repo/domains", ... }  ← Use THIS for --model-path
-
-$ cat packages/api/package.json
-{ "name": "@repo/api", "dependencies": { "@repo/domains": "workspace:*" } }
-# Confirms: models are imported from @repo/domains
-```
-
 ### Discovery Checklist
-
-Before running any `aptx` command, confirm you have:
 
 - [ ] Model package directory (e.g., `packages/domains/`)
 - [ ] Model package **name** from `package.json` (e.g., `@repo/domains`)
@@ -94,35 +101,36 @@ Before running any `aptx` command, confirm you have:
 
 ## Workflow
 
-1. **Discovery** → Read `package.json` files to get actual package names
-2. **Identify project type** → recommend parameters (see below)
-3. **Confirm with user** → output dir, model/client settings
-4. **Execute** → show command, get approval, run
+1. **Discovery** → Read `package.json` files
+2. **Confirm** → Output dir, model/client settings with user
+3. **Execute** → Show command, get approval, run
 
-### Single Project (code in `src/`)
+### Single Project
 
 ```bash
-# 1. Generate models
+# 1. Models
 pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style module
 
-# 2. Generate functions
-pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./src/api
+# 2. Functions
+pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./src/api \
+  --model-mode relative --model-path ./src/models
 
-# 3. Generate query layer (choose one)
+# 3. Query layer (choose one)
 pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./src/api \
-  --client-mode global --model-mode relative --model-path ./src/models
+  --model-mode relative --model-path ./src/models
 ```
 
-### Monorepo (models in separate package)
+### Monorepo
 
 ```bash
-# 1. Generate models
+# 1. Models
 pnpm exec aptx-ft -i ./openapi.json model gen --output ./packages/models/src --style module
 
-# 2. Generate functions
-pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./apps/web/src/api
+# 2. Functions
+pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./apps/web/src/api \
+  --model-mode package --model-path @org/models
 
-# 3. Generate query layer (choose one)
+# 3. Query layer (choose one)
 pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./apps/web/src/api \
   --client-mode package --client-package @org/api-client \
   --model-mode package --model-path @org/models
@@ -130,32 +138,16 @@ pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./apps/web/src/api \
 
 ## Output Structure
 
-### functions output
-
 ```
 src/api/
-├── spec/namespace/xxx.ts      # Endpoint definitions
-└── functions/namespace/xxx.ts # Function wrappers
-```
-
-### react-query output (requires functions first)
-
-```
-src/api/
-├── spec/namespace/xxx.ts           # From functions
-└── react-query/namespace/
-    ├── xxx.query.ts                # Query Hook
-    └── xxx.mutation.ts             # Mutation Hook
-```
-
-### vue-query output (requires functions first)
-
-```
-src/api/
-├── spec/namespace/xxx.ts           # From functions
-└── vue-query/namespace/
-    ├── xxx.query.ts                # Query Composable
-    └── xxx.mutation.ts             # Mutation Composable
+├── spec/namespace/xxx.ts           # Endpoint definitions (from functions)
+├── functions/namespace/xxx.ts      # Function wrappers (from functions)
+├── react-query/namespace/          # React Query hooks
+│   ├── xxx.query.ts
+│   └── xxx.mutation.ts
+└── vue-query/namespace/            # Vue Query composables
+    ├── xxx.query.ts
+    └── xxx.mutation.ts
 ```
 
 ## Framework-Specific Guides
