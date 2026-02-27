@@ -13,11 +13,47 @@ Generate TypeScript interfaces/enums from OpenAPI via aptx-ft.
 pnpm add -D @aptx/frontend-tk-cli
 ```
 
+## Discovery Phase - MANDATORY FIRST STEP
+
+**Before executing any generation command, you MUST discover the actual project configuration.**
+
+### For Monorepo Projects
+
+1. **Find packages directory:**
+   ```bash
+   ls -d packages/*/
+   ```
+
+2. **Identify model package and get its name:**
+   ```bash
+   # Find package that likely contains models (domains, models, types, shared, etc.)
+   cat packages/domains/package.json 2>/dev/null || cat packages/models/package.json 2>/dev/null
+   ```
+   Extract the `"name"` field - this is your `--model-path` value.
+
+### Critical Rules
+
+| ❌ NEVER Do This | ✅ ALWAYS Do This |
+|------------------|-------------------|
+| Guess package name from project directory | Read `package.json` to get actual `"name"` |
+| Assume `@project-name/models` | Use the exact value from `"name"` field |
+| Infer from `packages/domains/` path | Package name ≠ directory name |
+
+### Example Discovery
+
+```bash
+# User says: "generate to packages/domains"
+
+$ cat packages/domains/package.json
+{ "name": "@repo/domains", ... }  ← Package name is @repo/domains
+```
+
 ## Workflow
 
-1. **Identify project type** → recommend parameters
-2. **Confirm with user** → output dir, style, filters
-3. **Execute** → show command, get approval, run
+1. **Discovery** → Read `package.json` files to get actual package names
+2. **Identify project type** → recommend parameters
+3. **Confirm with user** → output dir, style, filters
+4. **Execute** → show command, get approval, run
 
 > **When regenerating models (API updated):** Always ask if user has manually translated enum names. If yes, recommend `--preserve` to keep translations.
 

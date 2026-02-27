@@ -37,11 +37,67 @@ All paths are relative to **working directory** (project root).
 | `--client-mode` | Client import mode | `global` / `local` / `package` |
 | `--client-package` | Custom client package | `@org/api-client` |
 
+## Discovery Phase - MANDATORY FIRST STEP
+
+**Before executing any generation command, you MUST discover the actual project configuration.**
+
+### For Monorepo Projects
+
+1. **Find packages directory:**
+   ```bash
+   ls -d packages/*/
+   ```
+
+2. **Identify model package and get its name:**
+   ```bash
+   # Find package that likely contains models (domains, models, types, shared, etc.)
+   cat packages/domains/package.json 2>/dev/null || cat packages/models/package.json 2>/dev/null
+   ```
+   Extract the `"name"` field - this is your `--model-path` value.
+
+3. **Identify API package and verify dependencies:**
+   ```bash
+   cat packages/api/package.json 2>/dev/null
+   ```
+   Check `dependencies` for the model package reference.
+
+### Critical Rules
+
+| ❌ NEVER Do This | ✅ ALWAYS Do This |
+|------------------|-------------------|
+| Guess package name from project directory | Read `package.json` to get actual `"name"` |
+| Assume `@project-name/models` | Use the exact value from `"name"` field |
+| Infer from `packages/domains/` path | Package name ≠ directory name |
+
+### Example Discovery
+
+```bash
+# User says: "generate to packages/domains and packages/api"
+
+# Step 1: Read actual package names
+$ cat packages/domains/package.json
+{ "name": "@repo/domains", ... }  ← Use THIS for --model-path
+
+$ cat packages/api/package.json
+{ "name": "@repo/api", "dependencies": { "@repo/domains": "workspace:*" } }
+# Confirms: models are imported from @repo/domains
+```
+
+### Discovery Checklist
+
+Before running any `aptx` command, confirm you have:
+
+- [ ] Model package directory (e.g., `packages/domains/`)
+- [ ] Model package **name** from `package.json` (e.g., `@repo/domains`)
+- [ ] API package directory (e.g., `packages/api/`)
+- [ ] API output path (e.g., `packages/api/src`)
+
 ## Workflow
 
-1. **Identify project type** → recommend parameters (see below)
-2. **Confirm with user** → output dir, model/client settings
-3. **Execute** → show command, get approval, run
+1. **Discovery** → Read `package.json` files to get actual package names
+2. **Identify project type** → recommend parameters (see below)
+3. **Confirm with user** → output dir, model/client settings
+4. **Execute** → show command, get approval, run
 
 ### Single Project (code in `src/`)
 
