@@ -1,4 +1,0 @@
-interface:
-  display_name: "Download OpenAPI"
-  short_description: "Download remote Swagger or OpenAPI JSON into local spec file"
-  default_prompt: "Use $download-openapi to fetch a remote OpenAPI URL and save it as a local json file for later generation."

@@ -1,94 +1,90 @@
 ---
 name: generate-models
-description: "Generate TypeScript models (interfaces/enums) from OpenAPI via aptx-ft. Use when user only needs model layer output, schema typing, or selective model generation; do not use for framework-specific enum adaptation."
+description: "Generate TypeScript interfaces and enums from OpenAPI schemas using aptx-ft CLI. Use when user asks to: (1) generate types/models from OpenAPI/Swagger, (2) create TypeScript interfaces from API schema, (3) extract type definitions from openapi.json, (4) generate selective models with --name filter, or (5) preserve translated enum values. Do NOT use for full artifact generation with request layer or Material UI enum adaptation."
 ---
 
-# 生成 TypeScript 模型（通用技能）
+# Generate TypeScript Models
 
-使用底层命令，不包含本地脚本包装。
+Generate TypeScript interfaces/enums from OpenAPI via aptx-ft.
 
-## 前置条件
-
-在目标项目安装 aptx 包，并确保可执行 `aptx-ft`：
+## Prerequisites
 
 ```bash
 pnpm add -D @aptx/frontend-tk-cli
 ```
 
-## 项目类型参数建议（执行前必须确认）
+## Workflow
 
-先判断项目类型，再给出建议参数；必须等待用户确认最终参数后再执行命令。
+1. **Identify project type** → recommend parameters
+2. **Confirm with user** → output dir, style, filters
+3. **Execute** → show command, get approval, run
 
-### 单项目（应用代码在 `src/`）
+## Project Types
 
-- 推荐输出：`--output ./src/models`
-- 推荐风格：`--style module`
-- 按需限制模型：`--name <Schema>`
+| Type | Output | Command |
+|------|--------|---------|
+| Single project | `./src/models` | `pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style module` |
+| Monorepo | `./packages/models/src` | `pnpm exec aptx-ft -i ./openapi.json model gen --output ./packages/models/src --style module` |
 
-示例：
+## Key Options
 
-```bash
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style module
-```
+| Option | Purpose |
+|--------|---------|
+| `--style module` | ES modules, individual exports (default, recommended) |
+| `--style declaration` | Single declaration file (legacy compatibility) |
+| `--name <Schema>` | Generate only specified models (repeatable) |
+| `--preserve` | Keep manually translated enum names on regeneration |
 
-### Monorepo（共享模型包）
+## Preserve Workflow
 
-- 推荐输出：`--output ./packages/models/src`
-- 推荐风格：`--style module`
-- 如只想增量生成，使用 `--name` 限制范围
+For incremental regeneration while keeping translated enum names:
 
-示例：
-
-```bash
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./packages/models/src --style module
-```
-
-## 执行步骤
-
-1. 准备输入（本地文件或 URL）。
-2. 询问用户关键参数并确认：
-   - **输出目录**：推荐 `./src/models`（单项目）或 `./packages/models/src`（Monorepo）
-   - **生成风格**（必问）：
-     - `module`（默认）：生成 ES Module 格式，每个类型独立 export，适合现代前端项目
-     - `declaration`：生成单一声明文件，适合需要全局类型声明或兼容旧项目的场景
-   - **选择性生成**（可选）：如只需部分模型，使用 `--name` 指定（可多次使用）
-3. 向用户展示完整命令并确认后执行。
-4. 执行命令并返回生成结果。
+1. Generate models
+2. Manually translate enums (e.g., `Value1` → `Success`)
+3. API updates with new enum values
+4. Regenerate with `--preserve` → keeps translations, adds new values
 
 ```bash
-pnpm exec aptx-ft -i <spec-file-or-url> model gen --output <output-dir> --style <module|declaration>
+# First generation
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models
+
+# After translating enums, regenerate with preserve
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --preserve
 ```
 
-> 注意：`--style` 默认值为 `module`，如需 `declaration` 风格需显式指定。
-
-示例：
+## Quick Reference
 
 ```bash
-# 使用默认 module 风格
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models
+# Basic usage (module style, default)
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models
 
-# 显式指定 module 风格
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models --style module
+# Declaration style
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style declaration
 
-# 使用 declaration 风格（单一声明文件）
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models --style declaration
+# Selective generation
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --name User --name Role
 
-# 选择性生成特定模型
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./generated/models --name User --name Role
+# Preserve translated enums
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --preserve
+
+# Without pnpm
+npx aptx-ft -i ./openapi.json model gen --output ./src/models
 ```
 
-可选（未使用 pnpm 时）：
+## Output
 
-```bash
-npx aptx-ft -i ./openapi.json model gen --output ./generated/models --style module
-```
+TypeScript model files (interface/enum). Does not include request layer code.
 
-## 输出
+## Boundaries
 
-- TypeScript 模型文件（interface/enum）。
-- 不包含请求层代码。
+This skill generates TypeScript models only:
+- Does NOT generate request layer code (functions, hooks) → use `generate-artifacts`
+- Does NOT adapt Materal-specific enum semantics → use `adapt-materal-enums`
+- Does NOT validate OpenAPI specification correctness
+- Only supports JSON format (not YAML)
 
-## 边界
+## Related Skills
 
-- 需要同时生成模型与请求框架时，使用 `generate-artifacts`。
-- 需要 Materal 专用枚举适配时，使用 `adapt-materal-enums`。
+- **generate-artifacts**: Full generation (models + request layer)
+- **adapt-materal-enums**: Materal framework enum adaptation
+- **download-openapi**: Fetch OpenAPI spec from URL

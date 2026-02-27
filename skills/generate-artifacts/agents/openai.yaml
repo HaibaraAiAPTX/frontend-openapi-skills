@@ -1,4 +1,0 @@
-interface:
-  display_name: "Generate API Artifacts"
-  short_description: "Generate models and @aptx API layers from OpenAPI spec"
-  default_prompt: "Use $generate-artifacts to generate models plus aptx functions or query layers from an OpenAPI file."
