@@ -19,6 +19,8 @@ pnpm add -D @aptx/frontend-tk-cli
 2. **Confirm with user** → output dir, style, filters
 3. **Execute** → show command, get approval, run
 
+> **When regenerating models (API updated):** Always ask if user has manually translated enum names. If yes, recommend `--preserve` to keep translations.
+
 ## Project Types
 
 | Type | Output | Command |
@@ -37,7 +39,7 @@ pnpm add -D @aptx/frontend-tk-cli
 
 ## Preserve Workflow
 
-For incremental regeneration while keeping translated enum names:
+**Recommended when regenerating models after API updates.** Keeps manually translated enum names while adding new values.
 
 1. Generate models
 2. Manually translate enums (e.g., `Value1` → `Success`)
