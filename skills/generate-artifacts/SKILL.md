@@ -102,14 +102,34 @@ cat packages/api/package.json
 ## Workflow
 
 1. **Discovery** → Read `package.json` files
-2. **Confirm** → Output dir, model/client settings with user
-3. **Execute** → Show command, get approval, run
+2. **Check output directory** → determine if `--preserve` is needed for models
+3. **Confirm** → Output dir, model/client settings with user
+4. **Execute** → Show command, get approval, run
+
+## Preserve Parameter Logic for Models
+
+**ALWAYS check if target model directory contains existing files before generating:**
+
+```bash
+# Check if model output directory has existing files
+ls ./src/models/*.ts 2>/dev/null || echo "empty"
+```
+
+| Directory State | Action |
+|-----------------|--------|
+| **Empty or not exists** | Generate models WITHOUT `--preserve` |
+| **Has existing .ts files** | Generate models WITH `--preserve` to keep enum translations |
+
+**Why:** When regenerating models in a non-empty directory, `--preserve` keeps manually translated enum names while adding new values.
 
 ### Single Project
 
 ```bash
-# 1. Models
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style module
+# 0. Check if models directory has existing files
+ls ./src/models/*.ts 2>/dev/null
+
+# 1. Models (add --preserve if directory is NOT empty)
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style module --preserve
 
 # 2. Functions
 pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./src/api \
@@ -123,8 +143,11 @@ pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./src/api \
 ### Monorepo
 
 ```bash
-# 1. Models
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./packages/models/src --style module
+# 0. Check if models directory has existing files
+ls ./packages/models/src/*.ts 2>/dev/null
+
+# 1. Models (add --preserve if directory is NOT empty)
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./packages/models/src --style module --preserve
 
 # 2. Functions
 pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./apps/web/src/api \

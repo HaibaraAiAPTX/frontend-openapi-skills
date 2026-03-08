@@ -1,6 +1,6 @@
 ---
 name: download-openapi
-description: "Download remote OpenAPI JSON to local file via aptx-ft. Use when user asks to: (1) fetch swagger/openapi from URL, (2) save API spec to openapi.json, (3) download OpenAPI specification, or (4) prepare local input for model/service generation."
+description: "Download remote OpenAPI/Swagger JSON specification from a URL to local file using aptx-ft CLI. TRIGGER when user mentions: (1) fetch/pull/download swagger or openapi from URL, (2) save API spec to openapi.json locally, (3) get API documentation from server, or (4) prepare local input for code generation. DO NOT TRIGGER when: generating code/types from local file, reading existing openapi.json, downloading non-OpenAPI files, or authentication is required."
 ---
 
 # Download OpenAPI JSON

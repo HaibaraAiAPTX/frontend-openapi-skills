@@ -52,10 +52,25 @@ $ cat packages/domains/package.json
 
 1. **Discovery** → Read `package.json` files to get actual package names
 2. **Identify project type** → recommend parameters
-3. **Confirm with user** → output dir, style, filters
-4. **Execute** → show command, get approval, run
+3. **Check output directory** → determine if `--preserve` is needed
+4. **Confirm with user** → output dir, style, filters
+5. **Execute** → show command, get approval, run
 
-> **When regenerating models (API updated):** Always ask if user has manually translated enum names. If yes, recommend `--preserve` to keep translations.
+## Preserve Parameter Logic
+
+**ALWAYS check if target directory contains existing models before generating:**
+
+```bash
+# Check if output directory has existing model files
+ls ./src/models/*.ts 2>/dev/null || echo "empty"
+```
+
+| Directory State | Action |
+|-----------------|--------|
+| **Empty or not exists** | Generate WITHOUT `--preserve` |
+| **Has existing .ts files** | Generate WITH `--preserve` to keep enum translations |
+
+**Why:** When regenerating models in a non-empty directory, `--preserve` keeps manually translated enum names while adding new values. Only skip `--preserve` for fresh generation.
 
 ## Project Types
 
@@ -93,17 +108,20 @@ pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --preserve
 ## Quick Reference
 
 ```bash
-# Basic usage (module style, default)
+# Check if output directory has existing models first
+ls ./src/models/*.ts 2>/dev/null
+
+# First generation (empty directory)
 pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models
+
+# Regeneration (non-empty directory) - use --preserve
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --preserve
 
 # Declaration style
 pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style declaration
 
 # Selective generation
 pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --name User --name Role
-
-# Preserve translated enums
-pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --preserve
 
 # Without pnpm
 npx aptx-ft -i ./openapi.json model gen --output ./src/models
