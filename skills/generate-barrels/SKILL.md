@@ -7,6 +7,17 @@ description: "Generate barrel index.ts files for TypeScript projects. Use when u
 
 Generate barrel index.ts files for TypeScript directories to simplify imports.
 
+> **Note**: Generation commands (`model gen`, `aptx functions`, `react-query`, `vue-query`) automatically update barrel files after generation. Use this command only for manual fixes or special cases.
+
+## When to Use This Command
+
+| Scenario | Action |
+|----------|--------|
+| Normal generation | Barrel files are auto-updated - no action needed |
+| Fixing corrupted barrel files | Use this command |
+| Processing non-standard directory structures | Use this command |
+| One-time batch updates across multiple directories | Use this command |
+
 ## Prerequisites
 
 ```bash

@@ -1,6 +1,6 @@
 ---
 name: generate-models
-description: "Generate TypeScript interfaces and enums from OpenAPI schemas using aptx-ft CLI. Use when user asks to: (1) generate types/models from OpenAPI/Swagger, (2) create TypeScript interfaces from API schema, (3) extract type definitions from openapi.json, (4) generate selective models with --name filter, or (5) preserve translated enum values. Do NOT use for full artifact generation with request layer or Material UI enum adaptation."
+description: "Generate TypeScript interfaces and enums from OpenAPI schemas using aptx-ft CLI. Use when user asks to: (1) generate types/models from OpenAPI/Swagger, (2) create TypeScript interfaces from API schema, (3) extract type definitions from openapi.json, (4) generate selective models with --name filter, (5) preserve translated enum values, (6) track generated files with manifest, (7) preview changes before generation, or (8) update barrel files automatically. Do NOT use for full artifact generation with request layer or Material UI enum adaptation."
 ---
 
 # Generate TypeScript Models
@@ -88,6 +88,67 @@ ls ./src/models/*.ts 2>/dev/null || echo "empty"
 | `--name <Schema>` | Generate only specified models (repeatable) |
 | `--preserve` | Keep manually translated enum names on regeneration |
 
+## Manifest Tracking
+
+The CLI automatically tracks generated files and detects changes between generations.
+
+### Manifest CLI Options
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `--no-manifest` | false | Disable manifest tracking |
+| `--manifest-dir <path>` | `.generated` | Custom manifest directory |
+| `--dry-run` | false | Preview mode: generate report without updating manifest |
+
+### Generated Manifest Files
+
+When manifest tracking is enabled (default), the following files are generated:
+
+```
+<output>/
+├── .generated/
+│   ├── manifest.json           # Tracks all generated files
+│   ├── deletion-report.json    # Machine-readable change report
+│   └── deletion-report.md      # Human-readable change report with LLM suggestions
+└── models...
+```
+
+### Manifest Report Contents
+
+The `deletion-report.md` includes:
+- **Summary table**: Added/deleted/unchanged file counts
+- **Deleted files**: List of files removed since last generation
+- **Added files**: List of new files added
+- **LLM suggestions**: Follow-up actions for handling deleted files
+
+### When to Use Manifest Options
+
+| Scenario | Command |
+|----------|---------|
+| Normal generation | Omit manifest options (default) |
+| CI/CD without tracking | Add `--no-manifest` |
+| Preview changes before applying | Add `--dry-run` |
+| Custom manifest location | Add `--manifest-dir ./meta` |
+
+## Automatic Barrel Updates
+
+**The CLI automatically updates barrel files (index.ts) after generation.**
+
+You no longer need to manually run `barrel gen` after generating models - the `model gen` command handles this automatically.
+
+### What Gets Updated
+
+- `<output>/index.ts` - Barrel file for the models directory
+
+### When Manual Barrel Update is Needed
+
+The automatic update handles most cases. Use manual `barrel gen` only when:
+- Fixing corrupted barrel files
+- Processing non-standard directory structures
+- One-time batch updates across multiple directories
+
+## Preserve Workflow
+
 ## Preserve Workflow
 
 **Recommended when regenerating models after API updates.** Keeps manually translated enum names while adding new values.
@@ -122,6 +183,15 @@ pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --style decl
 
 # Selective generation
 pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --name User --name Role
+
+# Preview changes without updating manifest
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --dry-run
+
+# Disable manifest tracking (CI/CD)
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --no-manifest
+
+# Custom manifest directory
+pnpm exec aptx-ft -i ./openapi.json model gen --output ./src/models --manifest-dir ./meta
 
 # Without pnpm
 npx aptx-ft -i ./openapi.json model gen --output ./src/models

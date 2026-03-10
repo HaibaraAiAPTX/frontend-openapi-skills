@@ -1,6 +1,6 @@
 ---
 name: generate-artifacts
-description: "Generate frontend artifacts from OpenAPI via aptx-ft, including models and request clients. Use when user wants: (1) to generate API code from OpenAPI/Swagger, (2) React Query hooks from API spec, (3) Vue Query composables from API spec, (4) function-based API clients, or (5) a standard flow for frontend projects without framework-specific business adaptation."
+description: "Generate frontend artifacts from OpenAPI via aptx-ft, including models and request clients. Use when user wants: (1) to generate API code from OpenAPI/Swagger, (2) React Query hooks from API spec, (3) Vue Query composables from API spec, (4) function-based API clients, (5) a standard flow for frontend projects without framework-specific business adaptation, (6) track generated files with manifest, (7) preview changes before generation, or (8) update barrel files automatically."
 ---
 
 # OpenAPI Artifact Generation
@@ -14,6 +14,9 @@ Generate models and request layer code from OpenAPI via aptx-ft CLI.
 - [Parameter Reference](#parameter-reference)
 - [Discovery Phase](#discovery-phase)
 - [Workflow](#workflow)
+- [Preserve Parameter Logic for Models](#preserve-parameter-logic-for-models)
+- [Manifest Tracking](#manifest-tracking)
+- [Automatic Barrel Updates](#automatic-barrel-updates)
 - [Output Structure](#output-structure)
 - [Framework-Specific Guides](#framework-specific-guides)
 - [Boundaries](#boundaries)
@@ -47,6 +50,9 @@ All paths are relative to **working directory** (project root).
 | `--model-path` | ✅ | Path or package name for model imports |
 | `--client-mode` | ❌ | `global` (default) / `local` / `package` |
 | `--client-package` | ❌ | Custom client package name |
+| `--no-manifest` | ❌ | Disable manifest tracking (default: false) |
+| `--manifest-dir` | ❌ | Custom manifest directory (default: `.generated`) |
+| `--dry-run` | ❌ | Preview mode without updating manifest (default: false) |
 
 ### Model Source Decision
 
@@ -122,6 +128,58 @@ ls ./src/models/*.ts 2>/dev/null || echo "empty"
 
 **Why:** When regenerating models in a non-empty directory, `--preserve` keeps manually translated enum names while adding new values.
 
+## Manifest Tracking
+
+The CLI automatically tracks generated files and detects changes between generations.
+
+### Manifest CLI Options
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `--no-manifest` | false | Disable manifest tracking |
+| `--manifest-dir <path>` | `.generated` | Custom manifest directory |
+| `--dry-run` | false | Preview mode: generate report without updating manifest |
+
+### Generated Manifest Files
+
+When manifest tracking is enabled (default), the following files are generated:
+
+```
+<output>/
+├── .generated/
+│   ├── manifest.json           # Tracks all generated files
+│   ├── deletion-report.json    # Machine-readable change report
+│   └── deletion-report.md      # Human-readable change report with LLM suggestions
+└── api files...
+```
+
+### When to Use Manifest Options
+
+| Scenario | Command |
+|----------|---------|
+| Normal generation | Omit manifest options (default) |
+| CI/CD without tracking | Add `--no-manifest` |
+| Preview changes before applying | Add `--dry-run` |
+| Custom manifest location | Add `--manifest-dir ./meta` |
+
+## Automatic Barrel Updates
+
+**The CLI automatically updates barrel files (index.ts) after generation.**
+
+You no longer need to manually run `barrel gen` after generating artifacts - the generation commands handle this automatically.
+
+### What Gets Updated
+
+- `<output>/index.ts` - Barrel file for the output directory
+- Subdirectory barrel files as needed
+
+### When Manual Barrel Update is Needed
+
+The automatic update handles most cases. Use manual `barrel gen` only when:
+- Fixing corrupted barrel files
+- Processing non-standard directory structures
+- One-time batch updates across multiple directories
+
 ### Single Project
 
 ```bash
@@ -138,6 +196,10 @@ pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./src/api \
 # 3. Query layer (choose one)
 pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./src/api \
   --model-mode relative --model-path ./src/models
+
+# Preview changes without updating manifest
+pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./src/api \
+  --model-mode relative --model-path ./src/models --dry-run
 ```
 
 ### Monorepo
@@ -157,12 +219,21 @@ pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./apps/web/src/api \
 pnpm exec aptx-ft aptx react-query -i ./openapi.json -o ./apps/web/src/api \
   --client-mode package --client-package @org/api-client \
   --model-mode package --model-path @org/models
+
+# Custom manifest directory
+pnpm exec aptx-ft aptx functions -i ./openapi.json -o ./apps/web/src/api \
+  --model-mode package --model-path @org/models --manifest-dir ./meta
 ```
 
 ## Output Structure
 
 ```
 src/api/
+├── .generated/                     # Manifest tracking files
+│   ├── manifest.json               # Tracks all generated files
+│   ├── deletion-report.json        # Machine-readable change report
+│   └── deletion-report.md          # Human-readable change report
+├── index.ts                        # Barrel file (auto-updated)
 ├── spec/namespace/xxx.ts           # Endpoint definitions (from functions)
 ├── functions/namespace/xxx.ts      # Function wrappers (from functions)
 ├── react-query/namespace/          # React Query hooks
