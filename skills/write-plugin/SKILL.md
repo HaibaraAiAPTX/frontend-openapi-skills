@@ -1,6 +1,6 @@
 ---
 name: write-plugin
-description: "Write custom JS plugins for the aptx-ft CLI. Use this skill whenever the user wants to customize or extend aptx-ft beyond its built-in generation commands. This is the correct skill whenever the user's request involves any of these concepts combined with aptx-ft: writing or loading a plugin file (.js), using the --plugin or -p CLI flag, creating custom CLI subcommands, accessing parsed OpenAPI data programmatically (ctx.getIr, PluginContext, GeneratorInput, IR data), building custom code generators (e.g. generating Axios clients instead of fetch-style), producing reports or analysis from an OpenAPI spec via a plugin (e.g. listing deprecated endpoints), or extending the CLI in any way. Also covers questions about how the plugin system works (PluginDescriptor, CommandDescriptor, OptionDescriptor). Do NOT use for standard generation tasks like generating models, react-query hooks, vue-query, functions, or barrel files — those belong to generate-artifacts or generate-models instead."
+description: "Write custom JS plugins for the aptx-ft CLI to add commands, generate code, or analyze OpenAPI specs. Use when: (1) writing or loading a plugin file (.js/.ts), (2) using --plugin/-p CLI flag, (3) creating custom CLI subcommands, (4) accessing parsed OpenAPI data via ctx.getIr/PluginContext/GeneratorInput, (5) building custom code generators (e.g. Axios clients), (6) producing reports from OpenAPI specs, (7) questions about PluginDescriptor/CommandDescriptor/OptionDescriptor. Do NOT use for standard generation (models, react-query, vue-query, barrel files) — use generate-artifacts or generate-models instead."
 ---
 
 # Write aptx-ft Plugin
@@ -86,6 +86,100 @@ pnpm exec aptx-ft -i ./openapi.json -p ./dist/my-plugin.js my generate -o ./outp
 ```
 
 The `--plugin` flag is global — place it before the subcommand. Each `-p` takes one path; repeat the flag for multiple plugins. The `-i` flag provides the OpenAPI file that `ctx.getIr()` reads.
+
+### TypeScript Type Definitions
+
+All types are exported from `@aptx/frontend-tk-core`. Install the package for type checking:
+
+```bash
+npm install -D @aptx/frontend-tk-core
+```
+
+#### Core Plugin Types
+
+```typescript
+// Main plugin interface
+interface Plugin {
+  descriptor: PluginDescriptor;
+  commands: CommandDescriptor[];
+  renderers?: RendererDescriptor[];
+  init?(context: PluginContext): void | Promise<void>;
+}
+
+// Plugin metadata
+interface PluginDescriptor {
+  name: string;
+  version: string;
+  namespaceDescription?: string;
+}
+
+// Context passed to handlers and renderers
+interface PluginContext {
+  binding: typeof import('@aptx/frontend-tk-binding');
+  log: (msg: string) => void;
+  getIr(inputPath: string): GeneratorInput;
+}
+
+// Command handler function type
+type CommandHandler = (
+  ctx: PluginContext,
+  args: Record<string, unknown>,
+) => Promise<void> | void;
+
+// Command definition
+interface CommandDescriptor {
+  name: string;
+  summary: string;
+  description?: string;
+  options: OptionDescriptor[];
+  examples?: string[];
+  handler: CommandHandler;
+  requiresOpenApi?: boolean;  // default: true
+}
+
+// CLI option definition (Commander.js style)
+interface OptionDescriptor {
+  flags: string;                    // e.g. "-o, --output <dir>"
+  description: string;
+  defaultValue?: string | boolean;
+  required?: boolean;
+}
+
+// Code renderer definition
+interface RendererDescriptor {
+  id: string;
+  render: (
+    ctx: PluginContext,
+    options: Record<string, unknown>,
+  ) => Promise<void> | void;
+}
+```
+
+#### IR (Intermediate Representation) Types
+
+`ctx.getIr(inputPath)` returns `GeneratorInput`. See [references/ir-types.md](references/ir-types.md) for full type definitions including `GeneratorInput`, `EndpointItem`, `ProjectContext`, `ModelImportConfig`, and `ClientImportConfig`.
+
+#### Type Relationships
+
+```
+Plugin
+  ├── descriptor: PluginDescriptor
+  ├── commands: CommandDescriptor[]
+  │     ├── options: OptionDescriptor[]
+  │     └── handler: CommandHandler(ctx: PluginContext, args)
+  ├── renderers?: RendererDescriptor[]
+  └── init?(ctx: PluginContext)
+
+PluginContext
+  ├── binding: Rust native binding
+  ├── log: (msg) => void
+  └── getIr(path) -> GeneratorInput
+        ├── project: ProjectContext
+        ├── endpoints: EndpointItem[]
+        ├── model_import: ModelImportConfig | null
+        ├── client_import: ClientImportConfig | null
+        └── output_root: string | null
+```
 
 ## Common Patterns
 
@@ -190,6 +284,10 @@ const plugin = {
 - Plugin files loaded at runtime must be `.js` or `.mjs` — compile `.ts` plugins first
 - Binary formats (`.node`, `.dll`, `.so`, `.dylib`) are skipped
 - Options array can be empty `[]` if the command takes no flags
+- Use `@aptx/frontend-tk-core` types for TypeScript plugins — install as dev dependency
+- `requiresOpenApi: false` for commands that don't need OpenAPI input (default is `true`)
+- `args` in handler is `Record<string, unknown>` — cast to specific types as needed
+- `ctx.binding` provides access to Rust native code via `binding.runCli({...})`
 
 ## Boundaries
 
