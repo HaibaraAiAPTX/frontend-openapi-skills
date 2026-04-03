@@ -16,6 +16,18 @@ Create custom JS plugins that extend the aptx-ft CLI with new commands and code 
 | Need to add project-specific CLI commands to aptx-ft | Register commands via plugin |
 | Built-in commands don't cover your use case | Extend with a plugin |
 
+## Command Name Mapping
+
+The plugin defines command names with a colon separator (e.g. `my:generate`), but the CLI splits this into two arguments at runtime:
+
+| Plugin `name` field | CLI invocation |
+|---------------------|----------------|
+| `my:generate` | `aptx-ft my generate` |
+| `tk:lint` | `aptx-ft tk lint` |
+| `report:deps` | `aptx-ft report deps` |
+
+The first part becomes a namespace subcommand, the second part becomes the actual command.
+
 ## Plugin File Structure
 
 A plugin is a CommonJS or ESM module exporting a `Plugin` object:
@@ -61,100 +73,19 @@ module.exports = myPlugin;
 module.exports.default = myPlugin;
 ```
 
-## Plugin Interface Reference
+## TypeScript Plugin Development
 
-### PluginDescriptor
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | `string` | Yes | Unique plugin identifier |
-| `version` | `string` | Yes | Semantic version |
-| `namespaceDescription` | `string` | No | Help text shown for this plugin's namespace |
-
-### CommandDescriptor
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | `string` | Yes | Command name in `namespace:command` format |
-| `summary` | `string` | Yes | One-line description |
-| `description` | `string` | No | Detailed help text |
-| `options` | `OptionDescriptor[]` | Yes | Array of CLI options (can be empty `[]`) |
-| `handler` | `function` | Yes | `(ctx, args) => void \| Promise<void>` |
-| `requiresOpenApi` | `boolean` | No | Whether command needs `--input` (default: true) |
-
-### OptionDescriptor
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `flags` | `string` | Yes | Option flags, e.g. `"-o, --output <path>"` |
-| `description` | `string` | Yes | Help text |
-| `defaultValue` | `string \| boolean` | No | Default value |
-| `required` | `boolean` | No | Whether option is mandatory |
-
-### PluginContext
-
-| Method / Field | Description |
-|----------------|-------------|
-| `ctx.getIr(inputPath)` | Parse OpenAPI file and return `GeneratorInput` IR object |
-| `ctx.log(msg)` | Print message to stdout |
-| `ctx.binding` | Direct access to native Rust binding |
-
-## IR Data Structure (`GeneratorInput`)
-
-The object returned by `ctx.getIr()`:
-
-```typescript
-{
-  project: {
-    package_name: string;    // API title from OpenAPI info.title
-    api_base_path?: string;  // Base path from server URL
-    terminals: string[];     // Terminal model type names
-  },
-  endpoints: [{
-    namespace: string[];         // e.g., ["users", "admin"]
-    operation_name: string;      // e.g., "getUsers"
-    export_name: string;         // e.g., "getUsers"
-    builder_name: string;        // Builder function name
-    summary?: string;            // OpenAPI operation summary
-    method: string;              // "get", "post", "put", "delete", "patch"
-    path: string;                // e.g., "/users/{id}"
-    input_type_name: string;     // Request body type name
-    output_type_name: string;    // Response type name
-    request_body_field?: string; // Request body field name
-    query_fields: string[];      // Query parameter names
-    path_fields: string[];       // Path parameter names
-    has_request_options: boolean;
-    deprecated: boolean;
-    meta: Record<string, string>;
-  }],
-  model_import: { ... } | null,  // Model import configuration
-  client_import: { ... } | null,  // Client import configuration
-  output_root: string | null,
-}
-```
-
-## Workflow
-
-1. **Understand user's goal** — What should the plugin generate or do?
-2. **Determine plugin structure** — How many commands? What options?
-3. **Draft the plugin file** — Follow the template above
-4. **Save to project** — Typically in a `plugins/` directory or project root
-5. **Test** — Run with `pnpm exec aptx-ft -i ./openapi.json -p ./my-plugin.js my:generate -o ./output`
-
-## Running a Plugin
+Plugins can be written in TypeScript. Since the CLI loads `.js` files at runtime, compile your `.ts` plugin first:
 
 ```bash
-# Single plugin
-pnpm exec aptx-ft -i ./openapi.json -p ./plugins/my-plugin.js my:generate -o ./output
+# Compile the plugin
+npx tsc my-plugin.ts --outDir ./dist --module commonjs --target ESNext
 
-# Multiple plugins
-pnpm exec aptx-ft -i ./openapi.json \
-  -p ./plugins/plugin-a.js \
-  -p ./plugins/plugin-b.js \
-  my:generate -o ./output
+# Run the compiled plugin (colon in name becomes two CLI args)
+pnpm exec aptx-ft -i ./openapi.json -p ./dist/my-plugin.js my generate -o ./output
 ```
 
-The `--plugin` flag is global — place it before the subcommand. The `-i` flag provides the OpenAPI file that `ctx.getIr()` reads.
+The `--plugin` flag is global — place it before the subcommand. Each `-p` takes one path; repeat the flag for multiple plugins. The `-i` flag provides the OpenAPI file that `ctx.getIr()` reads.
 
 ## Common Patterns
 
@@ -252,10 +183,12 @@ const plugin = {
 
 ## Rules
 
-- Command names must use `namespace:command` format (colon separator, no spaces)
+- Command names in the plugin use `namespace:command` format (colon separator)
+- **CLI invocation splits the colon into two args**: `my:generate` → `aptx-ft my generate`
 - `ctx.getIr()` throws on invalid file path or malformed OpenAPI — handle errors in your handler
 - Export both `module.exports` and `module.exports.default` for compatibility
-- Plugin files must be `.js` or `.mjs` — binary formats (`.node`, `.dll`, `.so`) are skipped
+- Plugin files loaded at runtime must be `.js` or `.mjs` — compile `.ts` plugins first
+- Binary formats (`.node`, `.dll`, `.so`, `.dylib`) are skipped
 - Options array can be empty `[]` if the command takes no flags
 
 ## Boundaries
