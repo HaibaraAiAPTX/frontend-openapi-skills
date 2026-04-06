@@ -159,6 +159,14 @@ interface RendererDescriptor {
 
 `ctx.getIr(inputPath)` returns `GeneratorInput`. See [references/ir-types.md](references/ir-types.md) for full type definitions including `GeneratorInput`, `EndpointItem`, `ProjectContext`, `ModelImportConfig`, and `ClientImportConfig`.
 
+**Handling HTTP Request Parameters:** Every endpoint may receive input through path parameters (`path_fields`), query parameters (`query_fields`), and request body (`request_body_field`). Your plugin **must** handle all three channels and their combinations. See [references/http-params-guide.md](references/http-params-guide.md) for a complete guide covering:
+
+- Path parameters (URL path interpolation)
+- Query parameters (URL query string)
+- Request body (JSON payload)
+- All combinations (path+query, path+body, query+body, path+query+body)
+- Detection logic and code generation patterns
+
 #### Type Relationships
 
 ```
@@ -288,6 +296,16 @@ const plugin = {
 - `requiresOpenApi: false` for commands that don't need OpenAPI input (default is `true`)
 - `args` in handler is `Record<string, unknown>` — cast to specific types as needed
 - `ctx.binding` provides access to Rust native code via `binding.runCli({...})`
+
+**HTTP Parameter Handling Rules:**
+- **Always check all three parameter channels** for every endpoint: `path_fields`, `query_fields`, `request_body_field`
+- **Never assume** an endpoint uses only one parameter channel — real APIs commonly combine path + query, path + body, or all three
+- **Path params**: Interpolate into `ep.path` template (replace `{paramName}` placeholders). Path params are always required
+- **Query params**: Append to URL as `?key=value&key2=value2`. Handle optional params by omitting null/undefined values
+- **Request body**: Send as JSON payload via `ep.request_body_field` (a single field name, not an array). Only present when the endpoint has a body
+- **Detection pattern**: Check `ep.path_fields.length > 0`, `ep.query_fields.length > 0`, and `!!ep.request_body_field` to determine which channels are active
+- **Order**: Build URL with path interpolation first, then append query string, then attach body to request options
+- See [references/http-params-guide.md](references/http-params-guide.md) for detailed examples of every combination
 
 ## Boundaries
 

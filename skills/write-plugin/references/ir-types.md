@@ -55,6 +55,18 @@ interface EndpointItem {
 }
 ```
 
+### HTTP Parameter Fields
+
+The three fields below determine how an endpoint receives its input. Every plugin that generates HTTP client code must handle all three channels:
+
+| Field | Type | HTTP Location | Description |
+|-------|------|---------------|-------------|
+| `path_fields` | `string[]` | URL path (`/users/{id}`) | Parameter names interpolated into `path`. Always required. |
+| `query_fields` | `string[]` | Query string (`?page=1`) | Parameter names appended as URL query params. May be optional. |
+| `request_body_field` | `string?` | Request body (JSON) | Single field name in the input type holding body data. `undefined` if no body. |
+
+For detailed examples of all parameter combinations and code generation patterns, see [http-params-guide.md](http-params-guide.md).
+
 ## ModelImportConfig
 
 ```typescript
