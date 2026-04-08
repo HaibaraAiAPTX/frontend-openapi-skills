@@ -61,14 +61,14 @@ All paths are relative to **working directory** (project root).
 
 | Parameter | Required | Description |
 |-----------|:--------:|-------------|
-| `--model-mode` | No | `relative` (same project) or `package` (monorepo) — **not yet wired to renderer** |
-| `--model-path` | No | Path or package name for model imports — **not yet wired to renderer** |
+| `--model-mode` | No | `relative` (same project) or `package` (monorepo) |
+| `--model-path` | No | Path or package name for model imports |
 
-> **Note:** These options are accepted by the CLI but the renderer currently hardcodes `from models.<name>` imports. They are reserved for future monorepo support.
+> **Note:** `relative` 会按“当前生成文件 -> 模型目录”计算 Python 包相对导入；`package` 会直接使用传入的 Python 包路径。
 
 ### Model Source Decision
 
-> **Status:** Not yet implemented. The renderer always uses `from models.<snake_name> import <Name>` regardless of `--model-mode` / `--model-path` settings.
+> **Status:** Implemented. 同包场景会生成显式包相对导入（如 `from ...models.UserDto import UserDto`），跨包场景可用 `--model-mode package --model-path my_package.models`。
 
 ```
 Is the models directory inside the same Python package where functions are generated?
@@ -260,7 +260,7 @@ class UserDto(BaseModel):
 
 ```python
 from __future__ import annotations
-from models.get_info_input import GetInfoInput
+from ...models.get_info_input import GetInfoInput
 from aptx_api_core import RequestSpec
 
 
@@ -276,10 +276,10 @@ def build_get_info_spec(input: GetInfoInput) -> RequestSpec:
 
 ```python
 from __future__ import annotations
-from models.get_info_input import GetInfoInput
-from models.user_dto import UserDto
+from ...models.get_info_input import GetInfoInput
+from ...models.user_dto import UserDto
 from aptx_api_core import get_api_client
-from spec.user.get_info_spec import build_get_info_spec
+from ...spec.user.get_info_spec import build_get_info_spec
 
 
 async def get_info(input: GetInfoInput) -> UserDto:
