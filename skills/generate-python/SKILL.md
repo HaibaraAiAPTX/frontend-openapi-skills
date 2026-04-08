@@ -1,11 +1,11 @@
 ---
 name: generate-python
-description: "Generate Python code from OpenAPI via aptx-ft, including Pydantic models, async API functions, and OpenAI function-calling tools.json. Use when user wants: (1) to generate Python client code from OpenAPI/Swagger, (2) Pydantic v2 data models from API schemas, (3) async API function wrappers with RequestSpec, (4) OpenAI function-calling tools.json, (5) Python code generation targeting aptx-api-core runtime, (6) track generated files with manifest, (7) preview changes before generation. Do NOT use for TypeScript code generation — use generate-artifacts or generate-models instead."
+description: "Generate Python code from OpenAPI via aptx-ft, including Pydantic models, sync API functions, and OpenAI function-calling tools.json. Use when user wants: (1) to generate Python client code from OpenAPI/Swagger, (2) Pydantic v2 data models from API schemas, (3) sync API function wrappers with RequestSpec, (4) OpenAI function-calling tools.json, (5) Python code generation targeting aptx-api-core runtime, (6) track generated files with manifest, (7) preview changes before generation. Do NOT use for TypeScript code generation — use generate-artifacts or generate-models instead."
 ---
 
 # Python Code Generation from OpenAPI
 
-Generate Python (Pydantic models + async API functions + tools.json) from OpenAPI via aptx-ft CLI.
+Generate Python (Pydantic models + sync API functions + tools.json) from OpenAPI via aptx-ft CLI.
 
 ## Contents
 
@@ -38,7 +38,7 @@ The Python codegen plugin (`@aptx/frontend-tk-plugin-python`) must be loaded. In
 | Command | Purpose | Output |
 |---------|---------|--------|
 | `python model` | Generate Pydantic v2 model classes | `models/*.py` |
-| `python functions` | Generate spec + async function wrappers | `spec/**/*.py` + `functions/**/*.py` |
+| `python functions` | Generate spec + sync function wrappers | `spec/**/*.py` + `functions/**/*.py` |
 | `python tools` | Generate OpenAI function-calling JSON | `tools.json` |
 
 > **Dependency**: `python functions` generates spec files that reference models. Run `python model` first if you need model imports.
@@ -180,7 +180,7 @@ src/api/
 │   ├── __init__.py
 │   └── user/
 │       ├── __init__.py
-│       └── get_info.py             # async def wrapper
+│       └── get_info.py             # def wrapper
 └── tools.json                      # From python:tools (OpenAI function-calling)
 ```
 
@@ -218,7 +218,7 @@ operation_name: "getMainAPIUserGetInfo"
 
 Output:
   spec file:    spec/user/get_info_spec.py  → build_get_info_spec()
-  function file: functions/user/get_info.py  → async def get_info()
+  function file: functions/user/get_info.py  → def get_info()
 ```
 
 Python reserved words get a trailing underscore: `class` → `class_`.
@@ -282,8 +282,8 @@ from aptx_api_core import get_api_client
 from ...spec.user.get_info_spec import build_get_info_spec
 
 
-async def get_info(input: GetInfoInput) -> UserDto:
-    return await get_api_client().execute_async(
+def get_info(input: GetInfoInput) -> UserDto:
+    return get_api_client().execute(
         build_get_info_spec(input),
         response_type=UserDto,
     )
@@ -322,7 +322,7 @@ dependencies = [
 ]
 ```
 
-- **aptx-api-core** — async HTTP client with middleware pipeline, error handling, and `RequestSpec` / `ApiClient` / `Middleware` types
+- **aptx-api-core** — sync/async HTTP client runtime with middleware pipeline, error handling, and `RequestSpec` / `ApiClient` / `Middleware` types
 - **pydantic** v2 — data model base classes (`BaseModel`, `Enum`) with validation
 
 ## Boundaries
